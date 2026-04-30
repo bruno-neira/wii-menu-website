@@ -1,0 +1,175 @@
+.bottom-bar-wrapper {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 27.59%;
+  pointer-events: none;
+}
+
+.bottom-bar-svg {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Left half-pill: flat end at screen left, rounded cap faces right */
+.bar-left {
+  position: absolute;
+  left: 0;
+  top: 8.55%;
+  width: 15.64%;
+  height: 76.07%;
+  background: #d3d4db;
+  border-radius: 0 9999px 9999px 0;
+  pointer-events: all;
+}
+
+/* Right half-pill: rounded cap faces left, flat end at screen right */
+.bar-right {
+  position: absolute;
+  right: 0;
+  top: 8.55%;
+  width: 15.64%;
+  height: 76.07%;
+  background: #d3d4db;
+  border-radius: 9999px 0 0 9999px;
+  pointer-events: all;
+}
+
+/* Center area — left-aligned with clock at 43.78% of screen width; top=47.5% within bottom bar */
+.bar-center {
+  position: absolute;
+  left: calc(43.78% + 2.5vw);
+  top: 47.5%;
+  bottom: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  pointer-events: none;
+}
+
+/* Flex row for day + date with Figma-proportional gap (32/1512 = 2.1vw) */
+.bar-date-group {
+  display: flex;
+  align-items: center;
+  gap: 2.1vw;
+}
+
+.bar-date {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: clamp(10px, 2.2vw, 33px);
+  color: #787879;
+  letter-spacing: 0.5px;
+}
+
+/* Wii Button — positioned within bar-left */
+.wii-button {
+  position: absolute;
+  left: 28.82%;
+  top: 5.77%;
+  height: 77.75%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 2px solid #4cbadf;
+  cursor: pointer;
+  padding: 0;
+  background: none;
+}
+
+.wii-button-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #dedede 0%, #d8d9e0 50%, #d5d5d5 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.08s ease;
+}
+
+.wii-button:hover .wii-button-inner {
+  transform: scale(1.06);
+}
+
+.wii-button:active .wii-button-inner {
+  transform: scale(0.95);
+}
+
+.wii-button-inner::after {
+  content: '';
+  position: absolute;
+  top: 5%;
+  left: 5%;
+  width: 60%;
+  height: 60%;
+  background: radial-gradient(ellipse at 30% 30%, rgba(255,255,255,0.64) 0%, rgba(255,255,255,0) 70%);
+  border-radius: 60% 45% 30% 55% / 65% 40% 35% 55%;
+  pointer-events: none;
+}
+
+.wii-button-text {
+  font-family: 'RocknRoll One', 'Helvetica Neue', Arial, sans-serif;
+  font-size: clamp(11px, 1.5vw, 16px);
+  font-weight: 700;
+  color: #4a5060;
+  letter-spacing: 0.5px;
+  z-index: 1;
+}
+
+/* Mail Button — positioned within bar-right */
+.mail-button {
+  position: absolute;
+  left: 12.30%;
+  top: 4.65%;
+  height: 80.28%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 2px solid #4cbadf;
+  cursor: pointer;
+  padding: 0;
+  background: none;
+}
+
+.mail-button-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #dedede 0%, #d8d9e0 50%, #d5d5d5 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.08s ease;
+}
+
+.mail-button:hover .mail-button-inner {
+  transform: scale(1.06);
+}
+
+.mail-button:active .mail-button-inner {
+  transform: scale(0.95);
+}
+
+.mail-button-inner::after {
+  content: '';
+  position: absolute;
+  top: 5%;
+  left: 5%;
+  width: 60%;
+  height: 60%;
+  background: radial-gradient(ellipse at 30% 30%, rgba(255,255,255,0.64) 0%, rgba(255,255,255,0) 70%);
+  border-radius: 60% 45% 30% 55% / 65% 40% 35% 55%;
+  pointer-events: none;
+}
+
+.mail-icon {
+  width: 55%;
+  height: 55%;
+  z-index: 1;
+}
