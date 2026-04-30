@@ -23,14 +23,11 @@
   position: absolute;
   inset: 2.5% 1.5%;
   border-radius: 4.5% / 8.5%;
-  background: linear-gradient(180deg,
-    #f8f9fa 0%,
-    #eef0f2 40%,
-    #e4e6e8 100%
-  );
+  background: #d8dadc;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
 }
 
 /* Gloss overlay */
