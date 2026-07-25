@@ -17,7 +17,7 @@ export default function WiiMenu() {
         <div className="channels-area">
           <div className="channels-grid">
             {Array.from({ length: CHANNEL_COUNT }).map((_, i) => (
-              <Channel key={i} />
+              <Channel key={i} index={i} />
             ))}
           </div>
 

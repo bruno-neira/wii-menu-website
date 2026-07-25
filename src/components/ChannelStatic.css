@@ -1,0 +1,46 @@
+.channel-static {
+  position: absolute;
+  inset: 0;
+  z-index: 0; /* below .channel-inner::before gloss (z-index: 2) */
+  pointer-events: none;
+
+  /* Atlas is COLS wide x FRAMES tall -> 200% / 2400%.
+     With background-size-x at 200%, a background-position-x of P% slides the
+     image by P/100 of the element width, so 0-100% sweeps exactly one atlas
+     column. That is the per-tile crop, expressed responsively with no px math. */
+  background-size: 200% 2400%;
+  background-repeat: repeat;
+  background-position-x: var(--snow-x, 0%);
+  image-rendering: pixelated; /* nearest-neighbour keeps the grain crisp */
+
+  animation: channel-snow 1s steps(23, jump-none) infinite;
+  animation-delay: calc(var(--snow-phase, 0) * -1s); /* == setCurrentFrame(rand) */
+}
+
+/* background-position-y travels 0% -> 100% across (FRAMES - 1) frame-heights,
+   so the discrete stops must be (FRAMES - 1) intervals. `steps(23)` alone emits
+   23 values and never reaches the final row; `jump-none` includes both endpoints
+   and emits 24 — one per atlas row exactly. Getting this wrong silently drops a
+   frame: invisible in review, visible as a hitch in the loop. */
+@keyframes channel-snow {
+  from {
+    background-position-y: 0%;
+  }
+  to {
+    background-position-y: 100%;
+  }
+}
+
+/* A grid of flickering high-frequency noise is a genuine photosensitivity and
+   vestibular concern (WCAG 2.2.2, 2.3.1). Freeze it.
+
+   Note we do NOT also drop opacity here. The upstream research recommends that
+   as a way to reach authentic contrast from a punchier default — but this build
+   already renders at the console's measured 0.047, so dimming further would push
+   the effect below visibility entirely. Freezing alone is the correct fallback
+   at this contrast. */
+@media (prefers-reduced-motion: reduce) {
+  .channel-static {
+    animation: none;
+  }
+}
