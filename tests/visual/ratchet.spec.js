@@ -160,4 +160,26 @@ test('ratchet: score render against reference_screen.png', async ({ page }) => {
     }
   }
   expect(regressions, `Fidelity regressed:\n  ${regressions.join('\n  ')}`).toEqual([])
+
+  /**
+   * Actually ratchet. Without this the baseline is only ever written when the
+   * file is absent, so improvements go unrecorded and the bar stays wherever it
+   * was first set — which is exactly what happened: the committed baseline sat
+   * at grid 0.0748 while the build measured 0.1199, meaning several real gains
+   * were never locked in and a regression back to 0.0748 would have passed.
+   *
+   * Only raises. A score that moved down but stayed inside TOL is noise and
+   * must not lower the bar, or the ratchet slowly walks backwards.
+   */
+  let raised = false
+  for (const [name, cur] of Object.entries(scores)) {
+    if (!base[name] || cur.ssim > base[name].ssim) {
+      base[name] = cur
+      raised = true
+    }
+  }
+  if (raised) {
+    writeFileSync(BASELINE, JSON.stringify(base, null, 2))
+    console.log('  Baseline raised — improvements locked in.')
+  }
 })
