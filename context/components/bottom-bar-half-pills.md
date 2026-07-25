@@ -24,22 +24,30 @@ it continues the bar's own vertical gradient rather than being a flat fill. What
 visible is a soft dark **outline**, not a tonal fill difference. Replacing `background: #d3d4db`
 with a flat lighter plate over-states the effect by roughly an order of magnitude.
 
+**Nintendo's own texture for this element has been located** and confirms it outright: the asset
+is an **alpha mask with a 54 %-opacity rim and a 7 %-opacity interior** — an outline, with
+essentially nothing inside. See §4a.
+
 ---
 
 ## 1. Sources and how they are tiered
 
 | Tag | Meaning | Sources used here |
 |---|---|---|
-| **[Direct observation]** | Sub-pixel measurement of this repo's `reference_screen.png` (420×236, System Menu 4.x — the SD Card icon is present). Method described in §9. | `/Users/brunoneira/orchids-projects/wiimenu-website/reference_screen.png` |
+| **[Direct observation]** | Sub-pixel measurement of this repo's `reference_screen.png` (420×236, System Menu 4.x — the SD Card icon is present). Method described in §10. | `/Users/brunoneira/orchids-projects/wiimenu-website/reference_screen.png` |
+| **[Direct observation — hi-res]** | Same analysis re-run on a **1096×600** Dolphin capture (2.6× the reference), which independently reproduces every number below | og:image of https://www.deviantart.com/da-namcocraftxp/art/DANCXP-s-Japan-Wii-Menu-Screenshot-Normal-1129708426 (signed/expiring direct URL; re-derive from the page) |
+| **[Texture rip]** | **Nintendo's actual texture asset**, dumped from the console via Dolphin. The strongest evidence in this doc — it is the source art, not a reconstruction. | `Alan-bur/WM4K` ("Official Wii Menu 4K Texture Pack"): https://github.com/Alan-bur/WM4K — file `0000000100000002/USA/Wii Menu/tex1_64x128_dc71b0c57d1424ff_2.png` (LFS; raw base `https://media.githubusercontent.com/media/Alan-bur/WM4K/main/...`, branch must be `main`) |
 | **[Official]** | Nintendo-authored | Wii Operations Manual — Channels & Settings, scanned + OCR'd: https://archive.org/details/wii-opmanual-chset (text: https://archive.org/download/wii-opmanual-chset/WiiRVKChEng_djvu.txt) |
 | **[Decomp]** | Fan decompilation of Nintendo's own System Menu binary — Nintendo's logic, symbol-for-symbol | `koopthekoopa/wii-ipl`: https://github.com/koopthekoopa/wii-ipl — specifically `src/scene/button/iplButton.cpp` and `include/scene/button/iplButton.h` |
 | **[Fan/community]** | Wikis, fan documentation | https://wiibrew.org/wiki/System_Menu |
 | **[Inferred]** | My reasoning on top of the above | — |
 
-**Evidence quality warning.** This is a small, low-contrast detail. The *shape* is unambiguous;
-the *lighting model* (raised plate vs. recessed slot) is inference from a 420 px-wide capture and
-should be treated as a design decision, not a fact. **No textual source anywhere — official or
-fan — names or describes this element.** The screenshot is essentially the only evidence.
+**Evidence quality.** Originally I rated this thin — a single 420 px capture. It is no longer
+thin: the geometry is confirmed at 2.6× resolution on an independent screenshot, and **the actual
+Nintendo texture for this element has been located** (§4a). What remains genuinely unverified is
+only the pre-4.0 history (§9). **No textual source anywhere — official or fan — names or
+describes this element**; it is drawn in the Operations Manual's Wii Menu diagram but never
+labelled.
 
 ---
 
@@ -141,6 +149,31 @@ This is mirrored exactly left/right.
 
 ---
 
+### 3e. Independently confirmed at 2.6× resolution
+
+**[Direct observation — hi-res]** The whole analysis was re-run on a 1096×600 capture. Every
+figure reproduces:
+
+| Quantity | 420×236 reference | 1096×600 capture | Agreement |
+|---|---|---|---|
+| Bar height | 65 px = 27.5 % of screen | 165 px = 27.5 % | exact |
+| Outline bottom edge | 82.3 % of bar height | y 571.5 → 83.3 % | ±1 pp |
+| Outline top edge | 13.1 % | y 456 → 13.3 % | ±0.2 pp |
+| Outline height | 45 px | 115.5 px | — |
+| **Pill height** | **70.0 % of bar height** | **115.5 / 165 = 70.0 %** | **exact** |
+| **Pill width** | **14.6 % of screen width** | **157.75 / 1096 = 14.4 %** | ±0.2 pp |
+| Cap radius = half height | yes | 57.75 = 115.5/2 | exact |
+| Shadow offset | (+3, +3.4) px | (+11.3, +8.8) px = (+2.9, +3.4) at 420-scale | matches |
+| Button Ø ÷ pill height | 86 % | 100 / 115.5 = 86.6 % | ±0.6 pp |
+| Faint second band above top edge | y 175.5 → 6.9 % | y 448 → 8.5 % | ✓ (this is the shape's own edge; §3b) |
+
+The hi-res capture also **independently validates the shadow-offset model of §3b**: subtracting the
+measured (+11, +9) px offset from the outline puts the shape's top edge at y ≈ 447 — and there is
+a real, weaker dark band measured at y = 448. The shape and its shadow are both visible at this
+resolution.
+
+---
+
 ## 4. Colour and fill — the part the current code gets wrong
 
 **[Direct observation]** Sampling the pill interior against the bar at the *same y* and the *same
@@ -161,6 +194,30 @@ models agree, and the deltas reproduce (−1.8, −2.4, −3.4, −4.0, −4.0, 
 at every sampled row (203 / 214 / 215 / 213 / 212 / 211 / 209), which is further confirmation that
 the two plates are the same shape mirrored. [Direct observation]
 
+**Re-measured on the 1096×600 capture** with two independent bare-bar reference columns (x 178–192
+and x 912–928, both under the flat top contour, both outside the pills) — same answer, and the
+left and right pill interiors are again pixel-identical:
+
+| y | Pill (x=10) | Pill (x=1086) | Bare bar (x=185) | Bare bar (x=920) |
+|---|---|---|---|---|
+| 470 | 202 | 202 | 204 | 205 |
+| 490 | 212 | 212 | 215 | 216 |
+| 510 | 215 | 215 | 218 | 219 |
+| 530 | 212 | 212 | 216 | 216 |
+| 550 | 211 | 211 | 214 | 214 |
+
+> **⚠ Contested finding — resolved.** A parallel research pass on the same 1096×600 image reported
+> the opposite: interior **+19 lighter** at y = 460, +15 at 480, +7 at 500, ~0 by 540. That reading
+> is an artifact of **comparing against a column at the same row but a different bar-top contour**.
+> The bar's shading is anchored to its top edge, which sits at y ≈ 434 at the screen edges but
+> y ≈ 499 at screen centre — a 65 px difference. Sampling a mid-screen column at y = 460 lands
+> *above the bar entirely* or in its dark sub-groove band, manufacturing a large spurious positive
+> delta. The tell-tale is the reported profile itself: +19 → +15 → +7 → 0 **decaying with depth**
+> is exactly how a contour-misalignment confound washes out, whereas a real fill difference would
+> hold roughly constant. Controlling for the contour (as above) gives a flat −2 to −4 at every
+> depth, on both sides, in both captures. **The texture rip in §4a settles it independently: the
+> interior has 7 % alpha and cannot be a bright plate.**
+
 So:
 
 - **The interior is ~1.5 % DARKER than the bar, not lighter.** [Direct observation]
@@ -177,6 +234,45 @@ So:
   for every column, y ≥ 226). There is no outer glow on the bottom side. [Direct observation]
 - **No cyan.** Unlike the bar's top contour and the buttons' rims, the pill outline carries no
   blue accent — it is a pure neutral grey darkening. [Direct observation]
+
+### 4a. The actual Nintendo texture — decisive
+
+**[Texture rip]** `tex1_64x128_dc71b0c57d1424ff_2.png` in the WM4K dump is this element. The
+filename encodes the **native size: 64 × 128 texels**; the shipped file is a 512×1024 8× upscale.
+Decoded:
+
+- **Silhouette**: a capsule — semicircular cap on one side, **flat exactly at the texture's own
+  edge** on the other. Native opaque extent ≈ **63 px wide × 92 px tall**. The flat edge sitting
+  precisely on the texture boundary is the giveaway that it is authored for **edge clamping** —
+  i.e. designed to be stretched to a screen edge.
+- **The cap is a true circle in texture space**, radius ≈ 46 = half the height. Verified: at 6 px
+  down from the top the silhouette starts at x ≈ 24.6, and a circle of r = 46 centred at (47, 64)
+  predicts x = 24.3.
+- **RGB is flat ≈ 222 across the entire texture.** All shape information lives in the **alpha
+  channel** — this is a white/grey alpha mask that the layout tints, the standard nw4r authoring
+  pattern.
+- **Alpha profile — this is the key finding:**
+  - **rim: 137/255 (54 %)**, ~2 native px thick, running the cap *and* both straight edges
+  - **interior: 18/255 (7 %)** — a whisper
+  - max alpha anywhere in the file: 137. There is no solid fill at all.
+
+**This is asset-level proof of §4's conclusion**: the half-pill is a **rim-defined shape with an
+essentially transparent interior**. Nintendo drew an outline, not a plate. Any implementation that
+fills it with a solid colour is reproducing something that does not exist in the source art.
+
+**Scale check, which ties the texture to the screen** [Texture rip + Direct observation — hi-res]:
+at uniform scale s, native height 92 × s = on-screen 115.5 → **s = 1.255**. The texture's cap
+radius 46 × 1.255 = **57.7**, versus the **57.75** measured on screen. Exact. The pane is drawn at
+uniform scale with the flat end clamped/stretched out to the screen edge — which is why the cap
+stays perfectly circular on screen even though the pill is much wider than the texture.
+
+**One honest tension** [Inferred]: the texture's RGB is 222 (light), yet on screen the interior
+reads ~3 levels *darker* than the bar and the rim reads ~17 darker. A 7 %-alpha 222 grey over a
+215 bar would change it by well under 1 level, and a 54 %-alpha 222 grey over a 210 bar would
+*brighten* it by ~6. So the layout pane must apply a **darker vertex-colour tint** to this mask
+(routine for nw4r layouts — the texture supplies the shape, the layout supplies the colour). The
+tint value is not recoverable from the texture; it lives in `my_IplTop_e.brlyt` on NAND. The
+empirical on-screen result is what §4 measures, and that is what to implement.
 
 ### Reading of the lighting
 
@@ -298,6 +394,8 @@ What is known:
   bottom-bar layout `my_IplTop_e.brlyt` (packed in `cmnBtn.ash`) alongside `B_Set` and `B_Bbs`,
   whereas the 4.0-era SD button was added as a *separate* layout object. Nothing about the pill is
   tied to SD-card functionality, and it frames both the launch-era buttons.
+- **[Gap]** The WM4K texture dump (§4a) is also from a 4.x console, so it does not settle the
+  history either — it only proves the element is a real, first-party asset.
 - **[Gap]** I was unable to confirm this against a pre-4.0 screenshot. A launch-era (2006, System
   Menu 1.0) capture, or a 2.x/3.x capture, would settle it in one glance — look for the flat dark
   line running from the screen edge to just past the Wii button, at roughly 70 % of the bar's
@@ -342,6 +440,26 @@ no visible compression artifacts) analysed as follows:
 
 Anyone can re-run this with PIL/NumPy against the same file.
 
+**The single most important methodological point**, and the one that produced a contradictory
+result on the first parallel attempt (§4): **the bar's vertical shading is anchored to its curved
+top contour, not to the frame.** The contour sits ~65 px higher at the screen edges than at screen
+centre (in the 1096-wide capture). Any tonal comparison must use a reference column whose top
+contour is at the *same* height as the pill's — i.e. a column in the flat-topped region near the
+screen edge but horizontally clear of the pill. Comparing "same row, mid-screen column" produces
+a large spurious *positive* delta that decays with depth.
+
+### Sources that turned out NOT to help
+
+- **The Wii Operations Manual's Wii Menu diagram** renders the screen at only ~530 px wide inside
+  a 4961 px page scan — the platform is visibly *drawn* but far too small to measure, and it is
+  never labelled. Useful as a naming source only. [Official]
+- **textures-resource.com / spriters-resource.com** have no Wii System Menu section at all
+  (404/403). [Fan/community]
+- **`andrewplus/Wii.JS`**, the best-known CSS/JS Wii Menu recreation, **omits the platform
+  entirely** — its `assets/images/wii-button.png` / `mail-button.png` are bare orbs and
+  `bottom-bg.png` is a plain 9×219 gradient strip. Do not use it as a fidelity reference for this
+  detail. [Fan/community]
+
 ---
 
 ## 11. Concrete corrections to `BottomBar.css`
@@ -363,9 +481,14 @@ Current `.bar-left` / `.bar-right`, measured against §3c:
 Suggested shape of the fix (not applied — this is a research doc):
 
 - Keep the capsule geometry; set `height: 70%`, `width: 14.6%`.
-- Drop the flat fill. Render the pill as a **soft inset outline** — e.g. an `inset` box-shadow /
-  1–2 px border in a colour ~8 % darker than the local bar tone, plus a barely-there interior
-  darkening (~1.5 %), plus a 1 px lighter hairline above the top edge.
+- **Drop the fill entirely** and render the pill as an outline. This is not a stylistic
+  preference — Nintendo's texture is a 54 %-alpha rim around a 7 %-alpha interior (§4a). The
+  faithful CSS is roughly:
+  - a **1–2 px border** (scaled: the rim is ~2 native texels of a 92-texel-tall shape, so
+    ≈ 1.7 % of the pill's height) in a colour ~8 % darker than the local bar tone;
+  - a **barely-there interior darkening** of ~1.5 % — or `transparent`, which is within a level
+    or two of correct and simpler;
+  - a **1 px lighter hairline just above** the top edge.
 - If you keep a fill for simplicity, derive it from the bar gradient rather than hard-coding a
   flat hex, and darken rather than lighten.
 - Add the (+0.7 % x, +4.6 % of bar height y) offset on the outline if you want the exact look;
