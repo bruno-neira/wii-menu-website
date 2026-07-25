@@ -1,32 +1,20 @@
 .clock-container {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
+  align-items: baseline;
+  gap: clamp(4px, 1vw, 12px);
   user-select: none;
 }
 
 .clock-time {
-  display: flex;
-  align-items: center;
-  gap: clamp(2px, 0.64vw, 10px);
-}
-
-.seg-group {
-  display: flex;
-  align-items: center;
-  gap: clamp(2px, 0.64vw, 10px);
-}
-
-.seg-digit {
-  height: clamp(20px, 4.37vw, 66px);
-  width: auto;
-}
-
-.seg-colon {
-  height: clamp(20px, 4.37vw, 66px);
-  width: auto;
+  font-family: 'M PLUS Rounded 1c', 'Quicksand', Arial, sans-serif;
+  font-weight: 700;
+  font-size: clamp(20px, 4.37vw, 66px);
+  color: #7a7a7a;
+  letter-spacing: 0.5px;
+  font-variant-numeric: tabular-nums;
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.6),
+    0 2px 3px rgba(0, 0, 0, 0.18);
 }
 
 .clock-ampm {
@@ -34,7 +22,7 @@
   font-size: clamp(8px, 1.72vw, 26px);
   font-weight: 700;
   color: #9b9b9b;
-  margin-left: clamp(2px, 1.92vw, 29px);
-  align-self: flex-end;
   letter-spacing: 1px;
+  align-self: flex-end;
+  margin-bottom: 0.15em;
 }
