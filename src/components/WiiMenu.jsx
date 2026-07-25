@@ -13,8 +13,7 @@ export default function WiiMenu() {
 
   return (
     <div className="wii-screen">
-      <div className="tv-frame">
-        <div className="stage-area">
+      <div className="stage-area">
           <div className="wii-menu" ref={stageRef}>
             <div className="wii-bg" />
 
@@ -45,7 +44,6 @@ export default function WiiMenu() {
             </div>
 
             <BottomBar />
-          </div>
         </div>
       </div>
     </div>

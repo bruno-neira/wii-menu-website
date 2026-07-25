@@ -9,42 +9,32 @@
   overflow: hidden;
 }
 
-/* TV frame — presentation chrome, not part of the real System Menu (which
-   renders full-bleed). Kept as a deliberate framing device. */
-.tv-frame {
-  position: relative;
-  aspect-ratio: 1512 / 982;
-  width: min(100vw, calc(100vh * 1512 / 982));
-  background: black;
-  flex-shrink: 0;
-}
-
-/* The region of the TV frame the menu occupies. The stage is scaled to fit
-   this box, so the hook measures the right container rather than the whole
-   frame. */
+/* Full-bleed, letterboxed on black.
+   The real System Menu renders edge to edge and draws no chrome of its own;
+   the console handles overscan in the video mode, not the layout. A decorative
+   bezel was a presentation choice, and it also forced a non-integer scale.
+   See context/aspect-ratio-and-overscan.md. */
 .stage-area {
   position: absolute;
-  top: 6.72%;
-  left: 0;
-  width: 100%;
-  height: 86.56%;
+  inset: 0;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
   overflow: hidden;
 }
 
-/* The stage: a fixed 810x456 virtual coordinate space, scaled to fit.
+/* The stage: a fixed 832x456 virtual coordinate space, scaled to fit.
    Everything inside is expressed in literal stage pixels — the same units
    Nintendo authored in — so measured values drop in without conversion and
    there is a single rounding regime for the whole UI. */
 .wii-menu {
   position: relative;
-  width: 810px;
+  width: 832px;
   height: 456px;
   flex: 0 0 auto;
-  transform: scale(var(--stage-scale, 1));
-  transform-origin: top center;
+  /* X is squashed by the anamorphic factor; see src/useStageScale.js. */
+  transform: scale(calc(var(--stage-scale, 1) * 0.97436), var(--stage-scale, 1));
+  transform-origin: center center;
   overflow: hidden;
 }
 
@@ -76,14 +66,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 66.4px;
+  padding: 0 68.2px;
   z-index: 1;
 }
 
 .channels-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  column-gap: 6.35px;
+  column-gap: 6.52px;
   row-gap: 5.19px;
   width: 100%;
 }
@@ -93,7 +83,7 @@
 .clock-above-bar {
   position: absolute;
   top: 332px;
-  left: 354.6px;
+  left: 364.2px;
   z-index: 2;
 }
 
@@ -116,7 +106,7 @@
 }
 
 .nav-arrow svg {
-  width: 26px;
+  width: 26.7px;
   height: auto;
 }
 
@@ -130,5 +120,5 @@
 }
 
 .nav-arrow-right {
-  right: 30px;
+  right: 30.8px;
 }
