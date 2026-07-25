@@ -200,3 +200,22 @@
   height: 55%;
   z-index: 1;
 }
+
+/* SD Card Menu icon. Sits outside the left pill, to the right of the Wii
+   button, and carries no button chrome of its own. */
+.sd-icon {
+  position: absolute;
+  left: 148px;
+  top: 34px;
+  width: 26px;
+  height: 32px;
+  pointer-events: all;
+  cursor: pointer;
+  opacity: 0.85;
+}
+
+.sd-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
