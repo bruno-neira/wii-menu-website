@@ -1,6 +1,14 @@
 # Component deep-dive: the Wii Remote pointer (the on-screen hand cursor)
 
-**Research date:** 2026-07-24
+**Research date:** 2026-07-24, extended 2026-07-25.
+**Second-pass additions —** Part A: §5.4a the 5-frame click delay, §5.5 pinch-latch semantics, §6.1d
+the hit-test boundary, §6.3 the 15° tilt confirmed a second time as a literal, §7.1–7.2 the full
+B-scroller algorithm and where it is actually used, §9.1 the HOME Menu's separate cursor, §10.4 which
+sounds are panned and how. Part B: corrected browser size caps (**Firefox's cap is 32, not 128**, and
+the 32 px viewport-containment rule applies to all three engines), `pointerrawupdate` /
+`getCoalescedEvents` / `getPredictedEvents`, an honest latency-floor discussion, `forced-colors`,
+WCAG precision, the hybrid-device media-query pitfall, Pointer Lock, and a rewritten
+screenshot-testing recommendation.
 **Scope:** Part A — what the real Wii Menu hand cursor *is* (shape, colours, states, rotation,
 smoothing, sound). Part B — how to actually replace the browser cursor with it on the web.
 
@@ -18,7 +26,7 @@ coding exists (§4.3).
 | **[Decomp — code evidence]** | Fan decompilation of Nintendo's *actual* System Menu 4.3 binary. Symbol-for-symbol Nintendo logic. Strongest behavioural source available. | `koopthekoopa/wii-ipl` — https://github.com/koopthekoopa/wii-ipl <br>Key files: `include/system/iplPointer.h`, `src/system/iplPointer.cpp`, `src/system/iplPointerCore.cpp`, `src/system/iplController.cpp`, `include/system/iplController.h`, `src/utility/iplUtility.cpp`, `src/system/iplSystem.cpp`, `src/homebutton/HBMBase.cpp`, `include/sound/IplSound.rsid` |
 | **[Asset — measured]** | Direct pixel measurement of the **ripped cursor texture atlas** from the real console. Objective. | *Pointer* sheet, Wii Menu, The Spriters Resource: https://www.spriters-resource.com/wii/wiimenu/asset/167191/ (image: `https://www.spriters-resource.com/media/assets/164/167191.png`, 129 × 259 RGBA PNG). Measured with PIL during this research pass. |
 | **[Official]** | Nintendo-authored | Nintendo Support — "Cursor is off-centre, jerky, erratic, disappears": https://www.nintendo.com/en-gb/Support/Wii/Troubleshooting/Wii-Remote-Controllers-amp-Sensor-Bar/Cursor-is-off-centre-jerky-erratic-disappears-etc-/Cursor-is-off-centre-jerky-erratic-disappears-etc-244285.html |
-| **[Official/MDN]** | MDN + browser engine source | MDN `cursor`: https://developer.mozilla.org/en-US/docs/Web/CSS/cursor · Chromium `ui/base/cursor/cursor.cc` and `third_party/blink/renderer/core/input/event_handler.cc` · WebKit `Source/WebCore/page/EventHandler.cpp` · MDN browser-compat-data `css/properties/cursor.json` |
+| **[Official/MDN]** | MDN, W3C specs, and browser-engine source | **Specs:** MDN [`cursor`](https://developer.mozilla.org/en-US/docs/Web/CSS/cursor) · [css-ui-4 §cursor](https://www.w3.org/TR/css-ui-4/#cursor) · MDN BCD [`css/properties/cursor.json`](https://github.com/mdn/browser-compat-data/blob/main/css/properties/cursor.json)<br>**Engine source:** Chromium [`ui/base/cursor/cursor.cc`](https://source.chromium.org/chromium/chromium/src/+/main:ui/base/cursor/cursor.cc;l=93) and [`blink/.../event_handler.cc`](https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/renderer/core/input/event_handler.cc;l=261) · WebKit [`Source/WebCore/page/EventHandler.cpp`](https://github.com/WebKit/WebKit/blob/main/Source/WebCore/page/EventHandler.cpp#L220) · Gecko [`StaticPrefList.yaml`](https://searchfox.org/mozilla-central/source/modules/libpref/init/StaticPrefList.yaml#11403) and [`EventStateManager.cpp`](https://searchfox.org/mozilla-central/source/dom/events/EventStateManager.cpp#4866)<br>**APIs:** [`pointerrawupdate`](https://developer.mozilla.org/en-US/docs/Web/API/Element/pointerrawupdate_event) · [`getCoalescedEvents()`](https://developer.mozilla.org/en-US/docs/Web/API/PointerEvent/getCoalescedEvents) · [`@media (pointer)`](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/pointer) · [`forced-colors`](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/forced-colors) · [`prefers-reduced-motion`](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-reduced-motion) · [Pointer Lock](https://developer.mozilla.org/en-US/docs/Web/API/Pointer_Lock_API)<br>**A11y:** [WCAG 2.2 SC 2.5.8](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html) · [SC 1.4.11](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html) · [W3C Low Vision Needs](https://www.w3.org/TR/low-vision-needs/) · [Windows](https://support.microsoft.com/en-us/windows/make-windows-easier-to-see-c97c2b0d-cadb-93f0-5fd1-59ccfe19345d) / [macOS](https://support.apple.com/guide/mac-help/change-pointer-display-settings-accessibility-mchl0ec8ce69/mac) pointer settings<br>**Perf:** [web.dev Animations guide](https://web.dev/articles/animations-guide) · **Security rationale:** [CVE-2019-11695 / Mozilla bug 1445844](https://bugzilla.mozilla.org/show_bug.cgi?id=1445844) |
 | **[Fan/community]** | Wikis, cursor packs | WiiBrew — Wiimote/Pointing: https://wiibrew.org/wiki/Wiimote/Pointing |
 | **[Inferred]** | My reasoning on top of the above | — |
 
@@ -32,6 +40,11 @@ coding exists (§4.3).
 > internal consistency with the decomp (exactly two hand poses, exactly four numerals, a separate
 > shadow silhouette pair — matching `P*_Def` / `P*_Cat` / `N_SRot`) is strong mutual corroboration,
 > but a rip can still contain flattening artefacts. Where I reconstructed the composite (§4.2) I say so.
+>
+> **The decomp is cloned locally.** Every `src/...` / `include/...` path in this document resolves
+> under `reference/wii-ipl/` in this repository. **Read it from disk** — it is faster and more
+> reliable than fetching from GitHub, and the line numbers cited below were taken from the local
+> clone (commit as vendored on 2026-07-24).
 
 ---
 
@@ -226,12 +239,32 @@ const char* HomeButton::scCursorSRotPaneName= "N_SRot";
 **tinted at draw time by the layout's vertex/material colour** — almost certainly to a low-alpha
 black.
 
-**[Inferred]** So the render order per cursor is: *soft dark blurred silhouette (offset), then the
-white+black hand on top, then the numeral multiply overlay.* The shadow rotating on its own pane
-(`N_SRot`, separate from `N_Rot`) means Nintendo could give it a slightly different pivot/offset so
-the shadow lags or sits down-right of the hand — the exact offset is inside `cursor.ash` and is **not
-recoverable from the decomp**. A soft `drop-shadow(2px 3px 3px rgba(0,0,0,0.35))` is a defensible
-web stand-in.
+**[Decomp — layout evidence] The exact shadow values are now recovered**, from the decompiled retail
+`P1_Def.brlyt` ([`mkwcat/starling`](https://github.com/mkwcat/starling/tree/master/assets/blyt)) —
+this supersedes the "not recoverable from the decomp" note that stood here after the first pass:
+
+| Property | Value |
+|---|---|
+| Shadow pane | `N_SRot`, translate **`(x: 3.0, y: -3.0)`** relative to `N_Trans` |
+| Shadow colour | `P1_DefS` material `tev color 0` = **`rgba(0, 0, 0, 90)`** → **35.3 % black** |
+| Shadow texture | `defcursor_sd_a.tpl` (texture index 2) — a separate soft silhouette, not a filter |
+| Quad size | **54 × 54** layout units, identical to the hand's quad |
+
+In nw4r's Y-up layout space, `y: -3.0` is **downward on screen**. So the offset is **3 units right and
+3 units down** on a 54-unit quad — i.e. **≈5.6 % of the cursor's size in each axis, down-and-right at
+45°**. Note the shadow is **not** offset in the artwork; the *pane* is offset, which is why it rotates
+about its own origin (§6.3) and the offset stays fixed in screen space while both silhouettes spin.
+
+**[Asset — measured]** The shadow artwork is the hand silhouette **dilated ~1 px** with a soft feather
+over ~3–4 px (measured alpha ramp 34 → 136 → 187 → 221 → 255).
+
+**Render order per cursor:** `N_SRot` (soft 35 % black silhouette, offset +3/−3) → `N_Rot` (white hand
++ black outline) → the numeral/gradient tint composited into the same material.
+
+**Web stand-in:** because it is a *separate offset silhouette* rather than a blur filter, the faithful
+and cheaper approach is a second SVG `<path>` translated by ~5.6 % of the cursor size in x and y,
+filled `rgba(0,0,0,0.353)`, with a small `feGaussianBlur` — **not** `filter: drop-shadow()` on the
+rotating element, which re-rasterises every frame (§12.8).
 
 ---
 
@@ -259,49 +292,86 @@ artwork that is:
 In plain language: **the numeral is stamped on the back of the fist**, centred, in the lower-middle
 of the hand. It is *not* a badge floating beside the cursor, not on the wrist, and not in a bubble.
 
-### 4.2 How it's rendered — and it is *not* a coloured badge
+### 4.2 How it's rendered — a **tint mask**, not a drawn badge
+
+> ⚠️ **This section and §4.3 were rewritten on 2026-07-25 and now say the opposite of what they said
+> before.** The first pass concluded from the sprite rip that the cursor is achromatic and that the
+> numeral is black. The *pixels* were read correctly; the *conclusion* was wrong, because the colour
+> is not in the texture at all — it is in the material's TEV colour register, which a texture rip
+> cannot contain. See §4.3. This is a good cautionary example: **a sprite rip shows you the textures,
+> not the material state that composites them.**
 
 **[Asset — measured]** In the ripped atlas the numeral tiles look inside-out: the digit is
-**alpha = 0 with RGB = 0**, and the surrounding plate is opaque and light. Critically, **RGB equals
-alpha at every pixel** — the signature of a GameCube/Wii **intensity-only (I8/IA8) texture** that the
-ripper expanded into RGBA.
+**alpha = 0 with RGB = 0**, and the surrounding plate is opaque and light. **RGB equals alpha at every
+pixel** — the signature of a GameCube/Wii **intensity-only (I8/IA8) texture** that the ripper expanded
+into RGBA.
 
-Read as an intensity map, the tile is: **value 255 (white) across the top ~60 %, ramping down to
-~187 grey toward the bottom, with the numeral punched to 0 (black).**
+Read as an intensity map, the tile is: **value 255 across the top ~60 %, ramping down to ~187 toward
+the bottom, with the numeral punched to 0.**
 
-**[Inferred, but verified by reconstruction]** That is a **multiply/shading overlay for the hand's
-white fill**. I reconstructed the composite during this research pass (hand RGB × numeral-tile
-intensity, hand alpha preserved) and it produces **exactly the iconic Wii cursor**: a white hand with
-a **solid black numeral on the fist** and a **subtle grey shading gradient across the lower third of
-the hand**. Two separate jobs, one texture:
+**[Decomp — layout evidence]** The decompiled retail layout
+([`mkwcat/starling`, `assets/blyt/P*_Def.brlyt.json5`](https://github.com/mkwcat/starling/tree/master/assets/blyt))
+shows the `P{n}_Def` material binds **two** texture maps, plus a colour register:
 
-1. the player numeral, in **black**, and
-2. a soft grey **bottom-shading gradient** on the hand (255 → ~187, starting around y40 of 64) that
-   gives the otherwise-flat white fill a hint of form.
+| Slot | Texture | Role |
+|---|---|---|
+| index 0 | `defcursor_final_p{n}.tpl` | the **numeral + gradient tint mask** (the greyscale plate) |
+| index 1 | `defcursor_final64_a.tpl` | the **white hand with the black outline** |
+| `tev color 0` | — | the **player colour** (§4.3) |
 
-**Practical spec for redrawing:** numeral in `#000000` (or a very dark grey), and a vertical linear
-gradient over the lower ~35 % of the hand from `#FFFFFF` to `#BBBBBB` (187 = `#BB`).
+So the intensity map is a **tint amount**, and the correct reading is `tint = (255 − value) / 255`:
 
-### 4.3 Per-player colours: **there are none** — correcting a common assumption
+| Plate value | Tint | Result |
+|---|---|---|
+| 255 (top ~60 % of the hand) | 0 % | pure white hand |
+| 187 (at the base) | **26.7 %** | player colour washed over white |
+| 0 (the numeral glyph) | **100 %** | numeral in solid player colour |
 
-**[Asset — measured]** The entire cursor atlas is achromatic. There is no blue-P1 / red-P2 /
-green-P3 / yellow-P4 coding anywhere in it.
+That `(255 − 187)/255 = 26.7 %` figure independently reproduces the **~25–27 % tint at the base of the
+hand** measured directly off the composited artwork in a browser during the second pass, and the
+resulting bottom-of-hand colour for P1 (`#008CFF` at 27 % over white ⇒ **`#BAE0FF`**) matches the
+**`#BEE2FF`** sampled from PrimmR's vector recreation. **Three independent derivations agree**, so the
+model is not a guess.
 
-**[Decomp — code evidence]** Corroborating: the four layouts per pose differ *only* by which numeral
-tile they reference; nothing in `Pointer`, `PointerCore` or `PointerCoreObject` ever sets a colour,
-tint, or material parameter per channel. The only per-channel state is `mChan`, used purely to index
-into `mpLayout[]`.
+**Practical spec for redrawing:** numeral in the **player colour** at full strength; plus a vertical
+linear gradient of the same colour over the lower ~38 % of the hand, from `0 %` alpha at ~62 % height
+to `~27 %` alpha at the base. The hand itself stays `#FFFFFF` with a `#000000` outline.
 
-> **Correction to prior project context.** Any assumption of "P1 blue, P2 red…" (a *Mario Kart Wii* /
-> *Wii Sports* convention, and the colour of the Wii Remote's player LEDs on some later hardware) does
-> **not** apply to the System Menu cursor. In the Wii Menu, **all four hands are identical white; only
-> the numeral differs.**
->
-> The Pinterest pin the owner saved — "hand-shaped pointer glove with a '1' player-number badge"
-> (`context/pinterest-board.md`) — is exactly this: a white hand with a black **1** on the fist.
+### 4.3 Per-player colours: **they exist, and here they are**
 
-**[Inferred] Design implication for a single-player web clone:** you can legitimately either (a) draw
-the **1** to be faithful, or (b) omit it. Faithful is better — the numeral is a large part of what
+**[Decomp — layout evidence]** `tev color 0` in each `P{n}_Def` material, quoted from the decompiled
+retail BRLYTs. I fetched and verified P1, P2 and P4 directly from source during this pass; P3 is from
+the same set:
+
+| Player | `tev color 0` (RGBA) | Hex | Colour |
+|---|---|---|---|
+| **P1** | `0, 140, 255, 255` | **`#008CFF`** | azure blue |
+| **P2** | `255, 56, 56, 255` | **`#FF3838`** | red |
+| **P3** | `16, 189, 13, 255` | **`#10BD0D`** | green |
+| **P4** | `255, 156, 0, 255` | **`#FF9C00`** | orange / amber |
+
+**Corroboration:** sampling PrimmR's independent vector recreation gives
+`#008DFF / #FE3839 / #11BD0D / #FF9B00` — **within ±1 per channel** of the decompiled registers. That
+is not coincidence; it is two people arriving at the same numbers from different artefacts.
+
+This is the standard **Nintendo player order** (blue → red → green → orange), the same as *Mario Kart
+Wii*, *Smash*, Wii U and Switch — so the intuition that "P1 blue, P2 red…" applies here turns out to
+be **correct after all**.
+
+> **Do not confuse this with the Wii Remote's player LEDs.** **[Official]** Those are **positional,
+> not chromatic** — all four LEDs on every Remote are the *same blue*, and the player number is
+> conveyed by *which* LED is lit (leftmost = P1). The colour coding is a **software/on-screen
+> convention only.** Both conventions are real; they just live in different places.
+
+**[Decomp — code evidence] Why the code looked like there was no colour.** The first pass reasoned
+that nothing in `Pointer` / `PointerCore` / `PointerCoreObject` ever sets a tint per channel — and
+that is **true**. It simply is not where the colour lives. The colour is **baked into each of the four
+layout files at authoring time**, which is precisely *why* Nintendo shipped four near-identical
+`.brlyt`s per pose instead of one layout with a runtime parameter (§2, fact 3). The four-file design
+is the evidence for per-player colour, not against it.
+
+**[Inferred] Design implication for a single-player web clone:** draw the **1** in `#008CFF` with the
+matching bottom gradient. Faithful is better — the numeral is a large part of what
 makes the shape read as "Wii" rather than "generic pointing hand".
 
 ---
@@ -356,7 +426,7 @@ enum { ON_TRIG = 0, ON_POINT, ON_LEFT, ON_MOVE, ON_DRAG, ON_RELEASE };
 
 `ON_POINT` = pointer entered a pane, `ON_LEFT` = pointer left it. Every hover handler in the codebase
 animates **the target**, plays a sound and rumbles — none of them touch the cursor. Representative
-example, `src/scene/button/iplButton.cpp`:
+example, `reference/wii-ipl/src/scene/button/iplButton.cpp:888-900` (verbatim, comments included):
 
 ```cpp
 void OptOutButton::start_point_event(const char* paneName, controller::Interface* con) {
@@ -379,8 +449,15 @@ Channel tiles do the same via `ChannelObj::onPoint()` → `setCursorAnim(1)`, wh
 called "cursor" internally (`ANIM_CURSOR_FOCUS_ON / FOCUS_OFF / SELECT`). It is a completely separate
 object from the hand. Don't conflate them.
 
+Note `con->rumble()` here takes the **default argument 0**, whereas channel-tile hover passes **1**
+(§10.3) — so buttons get the 200 ms lockout and channel tiles the 300 ms one. A small difference, but
+it means sweeping across the bottom-bar buttons can buzz half again as often as sweeping across
+channels.
+
 **Conclusion:** **the hand cursor does not change on hover.** Hover feedback = target animation +
-`WIPL_SE_*_TARGETTING` + a rumble pulse.
+`WIPL_SE_*_TARGETTING` + a rumble pulse. **[Inferred]** The web analogue is: animate the *tile*, play
+the blip, and leave the cursor element completely alone. Resist the near-universal web instinct to
+scale or glow the cursor on hover — it is the one thing the console definitively does not do.
 
 ### 5.4 A-button press — **the finger does NOT curl.** Correcting the fan consensus.
 
@@ -416,6 +493,80 @@ evidence:
 > invention**, and if the goal is fidelity, the honest press feedback is *no cursor change at all*.
 > Consider a very small scale-down (`scale(0.94)`, 60–80 ms) as a compromise: it reads as "click"
 > without asserting a pose that never existed. Make it a flag.
+
+### 5.4a The click itself is delayed by **exactly 5 frames** — and A+B *cancels* it
+
+This is new to this pass and is one of the more useful "feel" findings in the whole document,
+because it applies to the *interaction*, not just the cursor art.
+
+**[Decomp — code evidence]** `reference/wii-ipl/src/system/iplController.cpp:19-40`
+(`controller::Base::read()`):
+
+```cpp
+void Base::read() {
+    if (isValidBtn()) {
+        if (downTrg(BTN_INTERACT)) { mButton = 1; }   // A pressed this frame → arm
+        if (pinch())               { mButton = 0; }   // A+B held    → disarm
+        if (mButton != 0) {
+            if (down(BTN_INTERACT)) { unk_0x08++; }   // A still held → count frames
+            else { unk_0x08 = 0; mButton = 0; }       // A released  → reset
+        } else { unk_0x08 = 0; }
+    } else { mButton = 0; unk_0x08 = 0; }
+    ...
+}
+```
+
+and `reference/wii-ipl/src/system/iplController.cpp:121-123`:
+
+```cpp
+int Base::decide() const { return unk_0x08 == 5; }
+```
+
+`Manager::read()` is called **once per frame** from the main loop
+(`reference/wii-ipl/src/system/iplSystem.cpp:799`, inside the render/update loop). So:
+
+- **`decide()` is true on exactly the 5th consecutive frame that A is held** — not on the press
+  edge. At 60 fps that is **≈83.3 ms after the button goes down**.
+- It is a **one-frame pulse** (`== 5`, not `>= 5`). Holding A longer never re-fires it. Holding A
+  for 4 frames and releasing fires *nothing*.
+- Releasing A resets the counter to 0, so a rapid tap shorter than 5 frames is **swallowed
+  entirely**.
+
+`decide()` is the actual activation predicate for the things that matter. In
+`reference/wii-ipl/src/scene/channelSelect/iplChannelSelect.cpp` the channel-launch handler is
+`case ON_DRAG: if (... con->decide() ...) startChanTtlScene(chanObj);` — i.e. **launching a channel
+requires A held for 5 frames**, not a press. The Message Board's focus handler
+(`src/scene/board/iplBoardObject.cpp`, `case ON_DRAG`) uses the same predicate.
+
+**[Inferred] Why Nintendo did this.** With a shaky IR pointer, the *press* of A physically nudges
+the remote — the cursor jumps a few pixels at the instant of the click. Requiring five frames of
+sustained hold lets the pointer settle and, more importantly, gives the A+B disarm
+(`if (pinch()) mButton = 0;`) a window to fire first. **Starting a drag cancels the pending click** —
+that is what that line is for. Without it, every A+B grab would also register as a click on whatever
+was under the cursor.
+
+**[Inferred] Web translation.** This explains the Wii Menu's slightly *deliberate*, un-twitchy click
+feel, and it is cheap to reproduce and genuinely worth reproducing:
+
+```js
+// Activate on mouse-held, not on mousedown. ~83ms ≈ 5 frames at 60fps.
+const DECIDE_MS = 83;
+let armed = null;
+el.addEventListener('pointerdown', (e) => {
+  if (e.button !== 0) return;
+  armed = setTimeout(() => { armed = null; activate(); }, DECIDE_MS);
+});
+el.addEventListener('pointerup',     () => { clearTimeout(armed); armed = null; });
+el.addEventListener('pointercancel', () => { clearTimeout(armed); armed = null; });
+// Starting a drag disarms the pending click — this is the `if (pinch()) mButton = 0` line.
+onDragStart(() => { clearTimeout(armed); armed = null; });
+```
+
+> **Caveat, and it is a real one.** 83 ms of hold-before-activate is *correct* but it is also
+> measurably worse than an instant click on a mouse, where there is no IR jitter to settle. Web
+> users have no shaky pointer, so the delay buys nothing and costs responsiveness. **Ship it behind
+> a flag, defaulting off**, unless the project explicitly values feel-fidelity over responsiveness.
+> The part that is unambiguously worth keeping is the *cancel-on-drag* behaviour.
 
 ### 5.5 Grab / drag (A + B held) — a real, distinct pose
 
@@ -457,7 +608,39 @@ System::getPointer()->changeType(mConChan, Pointer::TYPE_POINT);
 **The swap is instantaneous** — a layout switch, not a tween. The visual difference is exactly the
 finger disappearing (§3.2). Also note the **positional audio**: `startSEwithPos(..., mDragPos.x)` pans
 the sound to the cursor's horizontal position, and during the drag it holds a looping
-`WIPL_SE_CH_DRAG` with pan *and* speed: `holdSEwithPosDis("WIPL_SE_CH_DRAG", pos.x, speed)`.
+`WIPL_SE_CH_DRAG` with pan *and* speed: `holdSEwithPosDis("WIPL_SE_CH_DRAG", pos.x, speed)`. See §10.4
+for the pan mapping.
+
+**How "pinch" is actually latched** — new to this pass. **[Decomp — code evidence]**
+`reference/wii-ipl/src/system/iplController.cpp:152-164` (`Revolution::read()`):
+
+```cpp
+unk_0x1E = unk_0x1D;                 // previous frame's pinch state
+if (isValidBtn()) {
+    if (unk_0x1E == 0) {
+        if (down(REVO_BTN_A) && down(REVO_BTN_B)) { unk_0x1D = 1; }   // latch ON
+    } else if (!down(REVO_BTN_A) || !down(REVO_BTN_B)) { unk_0x1D = 0; }  // latch OFF
+} else { unk_0x1D = 0; }
+```
+
+So `pinch()` is a **latch with hysteresis, not an instantaneous AND**:
+
+- It turns **on** only on a frame where the pinch was previously off *and* **both** A and B are down.
+- It turns **off** as soon as **either** button is released.
+- `pinchTrg()` / `pinchOffTrg()` are the rising/falling edges (`unk_0x1D` vs `unk_0x1E`), and
+  `pinchTrg()` is what `ChannelSelect` uses to call `startDrag()`.
+
+**[Inferred] Two consequences for a web port.** (1) The **order** of A and B does not matter — you
+can press B then A, or A then B, and the drag starts on the frame both are held. (2) Release of
+*either* button ends the drag, which is why a Wii user could let go of B and keep A held and the
+channel would drop. If the clone maps drag to "hold left mouse button and move", the analogous rule
+is: any pointerup or `pointercancel` ends the drag, and you should not require the release order to
+match the press order.
+
+**[Decomp] Note on `isValidBtn()`** (`iplController.cpp:177-181`): button reads are gated on the
+WPAD error code, so a remote that has dropped its Bluetooth link reports **no buttons held** rather
+than sticking. A latched pinch is therefore cleared on disconnect. The web analogue is the
+`pointercancel` / `window.blur` handling already in §12.5 — treat both as "release everything".
 
 ### 5.6 Off-screen / lost IR tracking — it vanishes instantly
 
@@ -571,6 +754,42 @@ void System::getProjectionRect16x9(nw4r::ut::Rect* r) { r->left=-416; r->right=4
 **The Wii Menu's layout space is 608 × 456 (4:3) or 832 × 456 (16:9), origin centred.** Every measured
 pixel figure in §3 is in those units.
 
+**(d) A separate, stricter clamp for hit-testing** — new to this pass, and it matters.
+**[Decomp — code evidence]** `reference/wii-ipl/src/layout/iplGuiManager.cpp:17-43`
+(`gui::PaneManager::update(int chan)`):
+
+```cpp
+nw4r::ut::Rect projRect(0.0f, 0.0f, 0.0f, 0.0f);
+System::getProjectionRect(&projRect);
+
+math::VEC2 conProjPos = con->getDpdProjectionPos();
+if ((projRect.left > conProjPos.x || conProjPos.x > projRect.right) ||
+    (projRect.top  > conProjPos.y && conProjPos.y > projRect.bottom)) {
+    conProjPos.y = IPL_MATH_NULL_FLOAT;      // = +infinity (include/math/iplMathTypes.h:19)
+    conProjPos.x = IPL_MATH_NULL_FLOAT;
+}
+::gui::Manager::update(chan, conProjPos.x, -conProjPos.y, ...);
+```
+
+So there are **two different boundaries**:
+
+| Boundary | Rule | Effect |
+|---|---|---|
+| **Drawing** (§6.1b) | 100 units of overshoot allowed past the rect | The hand is still *visible* leaning off the edge |
+| **Hit-testing** (here) | zero tolerance — outside the rect at all → position becomes ∞ | The hand *cannot hover or click anything* |
+
+**[Inferred] Web translation:** the cursor element should be allowed to render partially off-viewport
+(it looks right, and matches the console), but you should not synthesise hover/hit-test behaviour
+from the *smoothed* cursor position at all — hit-testing must use the **real** pointer position from
+the browser, which is the default anyway if you keep `pointer-events: none` on the cursor element
+(§12.2). This is a good reason **not** to be clever and re-implement hover detection against the
+lagged cursor: let the browser hit-test the true pointer, and let the drawn hand lag behind it. That
+is exactly the split the console has.
+
+*(Note the `&&` on the Y test where the X test uses `||` — almost certainly a Nintendo bug, since it
+makes the Y check unsatisfiable for a normal rect. Flagged rather than "corrected"; it is what the
+binary does.)*
+
 ### 6.2 Smoothing — Nintendo used the KPAD library defaults
 
 **[Decomp — code evidence]** `KPADStatus` (`libs/RVL_SDK/include/revolution/kpad.h`) already carries
@@ -668,6 +887,39 @@ math::VEC2 Classic::getHorizon() const {
 cursor tilt, when there is no roll data to read, is 15 degrees.** That is a strong, citable answer to
 "what angle should a mouse-driven Wii cursor sit at?" — see §11.
 
+**And it is confirmed a second time, as a literal, in a completely independent code path.**
+**[Decomp — code evidence]** The HOME Menu library keeps its own copy of the cursor system
+(§9.1). `reference/wii-ipl/src/homebutton/HBMBase.cpp:1461-1472`:
+
+```cpp
+if (pController->wiiCon[i].kpad->wpad_err == WPAD_ERR_OK) {
+    nw4r::math::VEC3 vec;
+    if (pController->wiiCon[i].use_devtype == WPAD_DEV_CLASSIC &&
+        pController->wiiCon[i].kpad->dev_type == WPAD_DEV_CLASSIC) {
+        vec = nw4r::math::VEC3(0.0f, 0.0f, 15.0f);            // <-- literal 15 degrees
+    } else {
+        Vec2 v = pController->wiiCon[i].kpad->horizon;
+        f32 rad = nw4r::math::Atan2Deg(-v.y, v.x);
+        vec = nw4r::math::VEC3(0.0f, 0.0f, rad);
+    }
+    ...SetRotate(vec);  // N_Rot and N_SRot, same as the System Menu
+}
+```
+
+Same condition (Classic Controller ⇒ no roll data), same result, but written **directly as `15.0f`**
+rather than as a horizon vector to be `atan2`'d. Two independent Nintendo code paths, one derived and
+one literal, both landing on 15°.
+
+**This removes the sign ambiguity too.** Because the HOME Menu path passes `+15.0f` straight into
+`SetRotate` as a Z rotation — the same call the System Menu makes with the `atan2` result — the two
+are directly comparable, and the System Menu's fallback is unambiguously **positive 15°**, not −15°.
+What "positive Z rotation" looks like on screen still depends on nw4r's convention (see the
+[Inferred] note below), but the *sign of the number* is now certain rather than reconstructed.
+
+> **Practical upshot:** `rotate(15deg)` is not a stylistic guess for this project. It is the value
+> Nintendo hard-coded for exactly the situation a mouse-driven web clone is in: a pointing device
+> with no roll axis. Use it (§12.4, Option 1).
+
 **[Inferred]** Sign/direction: `get_cursor_pos` flips Y so the layout space is Y-up; under the
 standard convention a positive Z rotation in a Y-up space is **counter-clockwise**, i.e. the fingertip
 leans **left**. I am ~80 % confident in that direction — the magnitude (15°) is certain, the sign is
@@ -718,38 +970,223 @@ if (mScrollState >= SCROLL) {
 Behaviour: press B → the cursor's current position becomes a **fixed anchor** (`setOrigin`,
 `BArwBase` shown); drag away from it → an arrow (`N_BArw`) grows from the anchor toward the drag,
 **length clamped 32–128 units**, **flipped vertically** for up vs down, and scroll speed follows the
-arrow length. Driven by `ipl::utility::BScroller` in `src/utility/iplUtility.cpp`, which also emits a
-ratcheting `WIPL_SE_B_SCROLL` tick every 128 units of accumulated scroll.
+arrow length. Note the two panes are mutually exclusive: `BArwBase` (a bare **origin dot**) is shown
+while `mbCursorScrolling` is false, and `N_BArw` (the **stretched arrow**) replaces it the moment
+scroll speed becomes non-zero. So the idle state of the widget is a dot, not a zero-length arrow.
 
-**[Inferred]** Worth building only if the clone gets a scrollable surface (Message Board, settings).
-The channel grid pages with +/− and the arrows, not with B-scroll.
+### 7.1 The full driver algorithm — `ipl::utility::BScroller`
+
+New to this pass. **[Decomp — code evidence]**
+`reference/wii-ipl/src/utility/iplUtility.cpp:51-200`, `include/utility/iplScroller.h:13-46`.
+
+**Acquisition** (`BScroller::calc()`, `iplUtility.cpp:73-107`). Every frame, if no channel currently
+owns the scroller (`mState < 0`), it scans channels 0→3 and claims the **first** one that satisfies
+*all three*:
+
+```cpp
+if (!ctrl->down(controller::REVO_BTN_B))  continue;   // B held
+if (!ctrl->isValidDpd())                  continue;   // IR lock valid
+if (!isYoungController(chan))             continue;   // and it's the "young" controller
+```
+
+On claiming it: records the anchor, sets `STATE_SCROLL` on that channel's hand (**hiding it**, §5.1),
+sets `mScrollState = chan`, and sets the arrow origin to the current cursor position.
+
+**Anchor and delta are in normalised DPD space, not layout space:**
+
+```cpp
+unk_0x08.x = math::abs_clamp<float>(ctrl->getDpdPos().x, 1.f);   // live position,  clamped to ±1
+unk_0x08.y = math::abs_clamp<float>(ctrl->getDpdPos().y, 1.f);
+unk_0x10   = unk_0x08;                                            // anchor, captured once
+```
+
+`getDpdPos()` is the **raw** KPAD `pos` (±1-ish across the screen), *not* the projected position — so
+the pull distance is measured in remote-space, then converted to pixels only for the arrow length.
+
+**Scroll speed is quadratic in the pull distance** (`_get()`, `iplUtility.cpp:149-158`):
+
+```cpp
+f32 diff = unk_0x08.y - unk_0x10.y;         // live − anchor, Y only
+if      (diff < -0.01f) result = -10.0f * (diff * diff);
+else if (diff >  0.01f) result =  10.0f * (diff * diff);
+else                    result =  0.0f;      // ±0.01 dead zone
+```
+
+Three things fall straight out of this and they are all worth copying:
+
+1. **Y only.** Horizontal pull does nothing. The B-scroll is a purely vertical gesture.
+2. **A dead zone of ±0.01** normalised units around the anchor — small hand tremor produces
+   *exactly zero* scroll, not a slow creep. This is the single most important detail for feel.
+3. **Speed = 10 · Δy², sign-preserved.** Quadratic, so it starts very gently and accelerates hard;
+   at full pull (Δy = 1) speed is 10 units/frame, at half pull it is 2.5 — a **4× difference for a
+   2× pull**. A linear map feels completely different and noticeably worse.
+
+**Arrow presentation** (`set_arw_param()`, `iplUtility.cpp:163-179`):
+
+```cpp
+System::getPointer()->setPointDirection(mSpeed < 0.0f ? 0 /*DOWN*/ : 1 /*UP*/);
+f32 arrowLen = math::abs<float>(unk_0x10.y - unk_0x08.y) * rect.GetHeight();   // × 456
+System::getPointer()->setArrowLength(arrowLen);
+System::getPointer()->setCursorScrolling(math::abs<float>(mSpeed) > 0.0f);
+```
+
+The arrow length is the **raw** pull distance scaled by the screen height (456), *then* clamped to
+32–128 by `Pointer::calc()`. So the arrow **saturates at a pull of 128/456 ≈ 0.28** normalised
+units — roughly a quarter-screen pull — while the *speed* keeps growing quadratically past that
+point. The arrow is a coarse indicator, not a linear gauge, and it deliberately stops growing long
+before the speed does.
+
+**Losing IR mid-scroll does not cancel the scroll** (`iplUtility.cpp:120-132`) — a genuinely
+surprising behaviour:
+
+```cpp
+} else {   // still holding B, but isValidDpd() is now false
+    if (math::abs<float>(unk_0x08.x) < math::abs<float>(unk_0x08.y)) {
+        unk_0x08.y = (unk_0x08.y < 0.0f) ? -1.0f : 1.0f;    // pin to full deflection
+        mSpeed = _get();
+        set_arw_param();
+    }
+}
+```
+
+If tracking drops while you are pulling, and the pull was predominantly vertical
+(`|x| < |y|`), the system **pins the pull to full deflection ±1.0 and keeps scrolling at maximum
+speed** until B is released. It does *not* stop. **[Inferred]** This is a deliberate "you aimed off
+the sensor bar while flinging the list, so keep flinging" affordance — but note the hand cursor is
+simultaneously *not being drawn* (§5.6 — `isValidDpd()` false ⇒ `mpLayout == NULL`). So the user sees
+a full-length arrow and no hand, scrolling at max speed. That is the real behaviour.
+
+**Release** (`iplUtility.cpp:110-113`): letting go of B, or the controller becoming null, or losing
+"young" status → `setState(STATE_NORMAL)` (hand comes back), `setScrollState(NO_SCROLL)`, full
+`init()`. **There is no inertia or fling** — scrolling stops dead on release.
+
+**The scroll tick sound** (`iplUtility.cpp:135-144`) is a genuine ratchet, driven by an accumulator
+rather than by time:
+
+```cpp
+if (math::abs<float>(mSoundFreq) > 128) {
+    snd::getSystem()->startSE("WIPL_SE_B_SCROLL");
+    mSoundFreq += (mSoundFreq > 0.0f) ? -128 : +128;    // consume one tick's worth
+}
+```
+
+`mSoundFreq` is fed by the *consumer* (`FocusObject`, `include/scene/board/iplFocusObject.h:70`:
+`mBScroller.addSoundFreq(movable)`) with the number of units actually scrolled that frame — so the
+tick fires **once per 128 units of real scroll travel**, regardless of speed. Scroll faster, the
+ticks come faster; scroll a pinned list that cannot move, and no ticks fire at all because `movable`
+is 0. That last property is why it never chatters at the end of a list.
+
+### 7.2 Where it is actually used — **not** the channel grid
+
+**[Decomp — code evidence]** Call sites for `BScroller` / `YoungBScroller`:
+
+| File | Surface |
+|---|---|
+| `include/scene/board/iplFocusObject.h:49-108` | **Message Board** — the letter/day list |
+| `src/scene/textWriter/iplTextWriter.cpp:100` | the **text writer** (typing a message) |
+| `src/scene/letterWriter/iplLetterWriter.cpp:90` | the **letter writer** |
+
+Nothing in `scene/channelSelect/` constructs one. **The channel grid pages with the ◀ ▶ arrows and
+the +/− buttons; it has no B-scroll.** This corrects a plausible-sounding but wrong assumption — the
+stretchy arrow is a *Message Board* widget that happens to be owned by the global `Pointer` object.
+
+**`isYoungController` gating** (`iplUtility.cpp:194-200`) means **only one specific remote may
+B-scroll at a time**:
+
+```cpp
+BOOL YoungBScroller::isYoungController(int chan) {
+    controller::Interface* p = System::getYoungController();
+    return (p != NULL && p->getChannel() == chan) ? TRUE : FALSE;
+}
+```
+
+Base `BScroller::isYoungController()` returns `TRUE` unconditionally, so the restriction is opt-in
+per surface — and the three real surfaces above all use `YoungBScroller`, i.e. all restricted.
+**[Uncertain]** What "young" *means* is not recoverable: `controller::Manager` is not decompiled (its
+body is `// u8 dummy[0x2F8];` in `include/system/iplController.h:207-209`), so
+`getYoungController()` has no visible implementation. The name suggests "most recently connected" and
+there is a parallel `getMasterController()`, but **this is a guess**. It does not matter for a
+single-cursor web clone.
+
+**[Inferred] Worth building only if the clone grows a Message Board or a settings list.** If you do
+build it, the parameters above (±0.01 dead zone, `10·Δy²` speed, arrow saturating at ~0.28 of a
+screen height, tick every 128 units of travel, no inertia) are the whole thing.
 
 ---
 
 ## 8. Size on screen
 
-**[Asset + Decomp — derived]** Hand artwork **43 × 62** layout units; screen **608 × 456** (4:3) or
-**832 × 456** (16:9).
+> ⚠️ **Revised 2026-07-25 — the first pass's figures were ~16 % too large.** It assumed the layout
+> drew the 64 px texture cell at 64 layout units (1:1) and flagged that assumption as open gap #2.
+> **The gap is now closed, and the assumption was wrong.**
 
-| Metric | 4:3 | 16:9 |
+**[Decomp — layout evidence]** The decompiled retail `P*_Def.brlyt` gives the actual geometry:
+
+```json5
+RootPane   : size 640.0 × 480.0          // the layout canvas
+N_Trans    : translate (0, 0)            // ← the pointer position is written here
+N_SRot     : translate (3.0, -3.0)       // shadow, offset down-right
+N_Rot      : translate (0, 0)
+P1_Def     : translate (8.0, -20.0)  size 54.0 × 54.0   // the artwork quad
+```
+
+**The 64 × 64 texture cell is drawn into a 54 × 54 quad — a scale factor of 54/64 = 0.84375.** Every
+size figure from §3 must be multiplied by it:
+
+| Measure | In texture px | **On screen (layout units)** |
 |---|---|---|
-| width as % of screen width | 43/608 = **7.07 %** | 43/832 = **5.17 %** |
-| height as % of screen height | 62/456 = **13.60 %** | **13.60 %** |
+| Pointing hand, width | 42–43 | **≈ 35.4** |
+| Pointing hand, height | 60–62 | **≈ 50.6** |
+| Grab fist, height | 43 | **≈ 36.3** |
+| Outline weight | ~4 | **≈ 3.4** |
+| Numeral cap height | 17 | **≈ 14.3** |
 
-Because a 16:9 screen is 4/3 wider for the same height, the hand's **physical** size is effectively
-identical in both modes (6.9 % vs 7.1 % of the physical screen width). The aspect-independent way to
-state it, and the one to use on the web:
+**[Decomp]** The canvas is **640 × 480** layout units. Note that the cursor's *reachable* rect
+(§6.1) is 608 × 456 — **exactly 95 % of the canvas in both axes**, i.e. a uniform 5 % overscan
+safe-area inset. Same units, two different rectangles; don't mix them.
 
-> **Cursor height ≈ 13.6 % of viewport height; width ≈ 9.4 % of viewport height (43/456).**
-> Aspect ratio of the artwork = 43 : 62 ≈ **0.694**.
+| Metric | Value |
+|---|---|
+| height as % of canvas height | 50.6 / 480 = **10.5 %** |
+| width as % of canvas height | 35.4 / 480 = **7.4 %** |
+| artwork aspect ratio | 35.4 : 50.6 ≈ **0.70** |
 
-On a 1920 × 1080 browser window that is **≈ 102 × 147 CSS px**. That is *large* — and it is the single
-fact that decides the Part B implementation (§10.3): **it is above every browser's `cursor: url()`
-size cap.**
+> **Use this:** **cursor height ≈ 10.5 % of viewport height**, width ≈ 7.4 % of viewport height,
+> aspect ratio **0.70**.
 
-**Does it scale?** **[Decomp]** Nothing in `Pointer`/`PointerCore` ever calls `SetScale` on a hand
-pane — only the scroll arrow gets a `SetScale`, and only to flip it. **[Inferred]** The Wii rendered at
-a fixed 480p-class resolution, so a fixed layout-unit size *was* a fixed fraction of the screen.
+On a 1920 × 1080 browser window that is **≈ 79 × 113 CSS px** (the first pass said 102 × 147).
+
+**This does not change the Part B verdict.** 113 px is still far above the **32 px** viewport-
+containment threshold that all three engines enforce (§12.1), so a `cursor: url()` implementation
+would still flicker back to the arrow around the entire window perimeter — and 113 px would be
+rejected outright in WebKit and Chromium the moment an OS "large cursor" accessibility setting scaled
+it past 128. **`cursor: url()` remains unusable here**; the correction only makes the recommended DOM
+follower a little smaller and cheaper.
+
+**Does it scale?** **[Decomp]** In the System Menu, **no.** Nothing in `Pointer`/`PointerCore` ever
+calls `SetScale` on a hand pane — only the scroll arrow gets a `SetScale`, and only to flip it.
+
+*But there is one exception, in the HOME Menu* (§9.1). **[Decomp — code evidence]**
+`reference/wii-ipl/src/homebutton/HBMBase.cpp:2479-2497` scales the HOME Menu's cursor layouts by the
+**TV overscan "location adjust"** factor, in lockstep with the rest of its UI:
+
+```cpp
+if (mAdjustFlag) {
+    scale = nw4r::math::VEC2(mpHBInfo->adjust.x, mpHBInfo->adjust.y);
+    mpLayout->GetRootPane()->SetScale(scale);
+    if (!mpHBInfo->cursor) {
+        for (int i = 0; i < WPAD_MAX_CONTROLLERS; i++)
+            mpCursorLayout[i]->GetRootPane()->SetScale(scale);
+    }
+} else { /* scale = (1,1), same two writes */ }
+```
+
+**[Inferred]** So the cursor's *size* was tied to the screen-safe-area calibration, not held
+constant — which is more evidence that the intended mental model is "a fixed fraction of the visible
+screen", not "a fixed pixel size". That is the behaviour a `vh`-based web sizing reproduces.
+
+**[Inferred]** The Wii rendered at a fixed 480p-class resolution, so a fixed layout-unit size *was* a
+fixed fraction of the screen.
 On the web, scaling with `vh` reproduces that; scaling with a fixed `px` does not. **Use `vh`, and
 clamp it** — 13.6 vh on a 2160-tall display is a 294 px hand, which is comical. `clamp(72px, 13.6vh, 160px)`
 for the height is a sane compromise **[Inferred]**.
@@ -785,6 +1222,49 @@ void PointerCore::draw() {
 **[Inferred]** For the web clone this is almost certainly out of scope, but it is a cute idea: a
 "local multiplayer" mode where extra cursors are driven by e.g. a WebSocket, or a demo cursor that
 idles. If you build it, keep `zIndex` descending with player number.
+
+### 9.1 There is a **second, independent** cursor implementation — the HOME Menu
+
+New to this pass. **[Decomp — code evidence]** The HOME Button Menu (`libs`-style middleware living
+in `reference/wii-ipl/src/homebutton/`) does **not** use `ipl::Pointer`. It builds and draws its own
+four cursor layouts (`HBMBase.cpp:354-361`, `:1234`, `:1306`):
+
+```cpp
+const char* HomeButton::scCursorLytName[res::eCursorLyt_Max] = {
+    "P1_Def.brlyt", "P2_Def.brlyt", "P3_Def.brlyt", "P4_Def.brlyt",
+};
+const char* HomeButton::scCursorPaneName     = "N_Trans";
+const char* HomeButton::scCursorRotPaneName  = "N_Rot";
+const char* HomeButton::scCursorSRotPaneName = "N_SRot";
+```
+
+Three things this tells us that the System Menu alone could not:
+
+1. **The `.brlyt` names and the three pane names are a shared contract**, reused verbatim by
+   separate Nintendo code against a different resource archive. So `N_Trans` / `N_Rot` / `N_SRot` is
+   the canonical Wii cursor rig, not a `Pointer`-specific quirk. Good confidence that a web
+   implementation mirroring that three-node structure (translate node → rotate node → art, plus a
+   parallel rotate node for the shadow) is structurally faithful.
+2. **`eCursorLyt_Max` covers only the four `_Def` layouts — there is no `_Cat`.** The HOME Menu has
+   nothing to drag, so the grab pose is genuinely drag-specific rather than a general "button held"
+   pose. Independent corroboration of §5.4's conclusion.
+3. It also drives the same `KPADGetProjectionPos(&pos, &src, &bound, 1.10132f)` call
+   (`HBMBase.cpp:1543`, `:1688`) — the **same `1.10132f` gain constant** (§6.1a) — so that number is
+   a platform-wide convention, not a System-Menu tuning choice.
+
+**[Decomp]** `mpHBInfo->cursor` is a caller-supplied flag: when it is set, the HOME Menu **suppresses
+its own cursor** (every cursor write in `HBMBase.cpp` is guarded by `if (!mpHBInfo->cursor)`) on the
+assumption that the host application is already drawing one. That is how the System Menu avoids two
+hands on screen when you open HOME.
+
+**[Fan/community]** This dovetails with the note quoted in `context/components/completeness-sweep.md`
+that "the pointer does not blink when closing the HOME Menu on the System Menu" — there is no
+handoff between two cursor systems to blink *through*, because the System Menu keeps ownership
+throughout.
+
+**[Inferred] Relevance to the web build:** none directly — but if the clone ever implements a HOME
+overlay, the correct behaviour is to keep rendering the *same* cursor component above the overlay,
+not to mount a second one.
 
 ---
 
@@ -835,6 +1315,68 @@ A hover rumble is a **58.3 ms (7/120 s) motor pulse**, with a 200 ms or 300 ms l
 type. **[Inferred]** No web equivalent on desktop; the Gamepad Haptics API only applies to connected
 gamepads. Mentioned because it explains why Wii hover *felt* like more than a blip.
 
+Both channel-hover call sites pass rumble **type 1** —
+`reference/wii-ipl/src/scene/channelSelect/iplChannelSelect.cpp:2079` and `:2276`, each
+`snd::getSystem()->startSE("WIPL_SE_CH_TARGETTING"); con->rumble(1);` — so the channel-grid hover
+lockout is `lbl_8160D2C0[1]` = **300 ms**. You cannot make it buzz continuously by sweeping the
+cursor back and forth across a tile boundary; three hovers per second is the ceiling.
+
+### 10.4 Which sounds are panned by cursor X — and the exact mapping
+
+New to this pass, and directly actionable for a Web Audio implementation.
+
+**[Decomp — code evidence]** The sound façade (`reference/wii-ipl/include/sound/iplSound.h:28,31`)
+exposes two positional entry points alongside the plain one:
+
+```cpp
+int startSE(const char* sndName);
+int startSEwithPos(const char* sndName, f32 pos);          // pan
+int holdSEwithPosDis(const char* sndName, f32 x, f32 y);   // pan + "distance"/intensity
+```
+
+Grepping every call site in `src/` gives a **short and specific** list. This is the whole set:
+
+| Sound | Call | Panned by | File |
+|---|---|---|---|
+| `WIPL_SE_CH_HOLD` | `startSEwithPos(…, mDragPos.x)` | **cursor X** at grab | `scene/channelSelect/iplChannelSelect.cpp:2159` |
+| `WIPL_SE_CH_DRAG` | `holdSEwithPosDis(…, pos.x, speed)` | **cursor X**, + drag speed | `iplChannelSelect.cpp:2232` |
+| `WIPL_SE_CH_SET` | `startSEwithPos(…, mDragPos.x)` | **cursor X** at drop | `iplChannelSelect.cpp:2171` |
+| `WIPL_SE_CH_NOT_MOVE` | `startSEwithPos(…, mDragPos.x)` | **cursor X** at failed drop | `iplChannelSelect.cpp:2177` |
+| `WIPL_SE_BOARD_HOLD` / `_RELEASE` | `startSEwithPos(…, boardObject->mBoardPos.x)` | **object X**, not cursor | `scene/board/iplBoard.cpp:393,400` |
+| `WIPL_SE_BOARD_DRAG` | `holdSEwithPosDis(…, mBoardPos.x + mMoveSpeed.x, speed)` | object X **+ velocity lookahead** | `scene/board/iplBoardObject.cpp:415` |
+| `WIPL_SE_MSG_DISP` | `startSEwithPos(…, mBoardPos.x)` | object X | `scene/board/iplBoardObject.cpp:352` |
+| `WIPL_SE_MSG_HOUSE` | `startSEwithPos(…, ±300.0f)` | **hard-coded** ±300 | `scene/board/iplBoard.cpp:1095,1116` |
+
+**The important negative result:** `WIPL_SE_CH_TARGETTING` and `WIPL_SE_BT_TARGETTING` — the hover
+blips, by far the most frequently heard cursor sounds — are fired with **plain `startSE`**, i.e.
+**centred, not panned** (`iplChannelSelect.cpp:2078, 2276`; `scene/button/iplButton.cpp`). So the
+correct summary is narrower than "cursor sounds are positionally panned": **only the drag family is
+panned.** Hovering is mono/centre no matter where on screen the tile is.
+
+**The mapping.** The `pos` argument is an **X coordinate in layout units**, so its full range is the
+projection rect: **−304 … +304 in 4:3**, **−416 … +416 in 16:9** (§6.1c). The `WIPL_SE_MSG_HOUSE`
+call passing a literal `±300.0f` — essentially the 4:3 left/right edges — confirms the units.
+**[Inferred]** In Web Audio that is a direct mapping to `StereoPannerNode.pan` (−1 … +1):
+
+```js
+// x: cursor position in CSS px; w: viewport width.
+const panner = new StereoPannerNode(ctx, { pan: 0 });
+panner.pan.value = Math.max(-1, Math.min(1, (x / w) * 2 - 1));
+src.connect(panner).connect(ctx.destination);
+```
+
+**[Uncertain]** Whether Nintendo's `pos` → pan curve was linear, and whether it saturated before the
+edge, is **not recoverable** — `snd::System` derives from `EGG::SimpleAudioMgrWithFx` and only
+`shutup()` is decompiled (`src/sound/iplSound.cpp` is 10 lines). Assume linear; it is the obvious
+choice and nothing contradicts it.
+
+For `holdSEwithPosDis(name, x, y)` the second argument is a **speed/intensity** value, computed in
+`iplChannelSelect.cpp:2216-2232` as the magnitude of the per-frame cursor delta
+(`speed = val * FrSqrt(val)` where `val = dx² + dy²`, i.e. **|Δ|³**, a very aggressive curve).
+**[Inferred]** Map it to gain and/or playback rate on a looping drag sound so that a fast drag is
+louder/brighter — cube-law means it stays near-silent for slow drags and ramps sharply, which is
+almost certainly the intent (a slow, careful reposition should be quiet).
+
 ---
 
 ## 11. Asset availability (and why you should still draw your own)
@@ -851,16 +1393,26 @@ gamepads. Mentioned because it explains why Wii hover *felt* like more than a bl
 > Nintendo's ripped texture in a public repo is both a legal risk and unnecessary. Use the rip on
 > screen, beside your SVG, as a visual diff target — never in `src/`.
 >
-> **Redraw spec, ready to use** (viewBox `0 0 43 62`, matching the measured artwork exactly):
-> - fingertip apex at `(12.5, 0)` — **this is the hotspot**
-> - index finger: vertical column x `6→19`, y `0→19`, rounded cap
-> - knuckles appear at y20 (to x25), y22 (to x32), y24 (to x39)
-> - widest point y36–44, x `0→42`; thumb bump on the left at x0
-> - bottom edge y62, x `13→34`
-> - fill `#FFF`; stroke `#000` at `stroke-width: 6` centred (≈3 px visible each side)
-> - numeral: black, glyph box centred at `(22.5, 41)`, cap height `17`
-> - bottom shading: linear gradient `#FFF → #BBB` over y `39→62`, multiply
-> - grab pose: identical, minus the finger, `viewBox 0 0 43 43` (bottom-aligned)
+> **Redraw spec, ready to use.** Draw in **texture space** (`viewBox 0 0 43 62`) — it is the space
+> every §3 measurement is in — and let CSS scale the whole thing to 10.5 vh (§8). Do *not* redraw at
+> 35 × 51; you would just be pre-applying the 0.84375 factor and losing precision.
+>
+> - **Silhouette:** fingertip apex at `(12.5, 0)`; index finger a vertical column x `6→19`, y `0→19`,
+>   rounded cap; knuckles step in at y20 (to x25), y22 (to x32), y24 (to x39); widest point y36–44,
+>   x `0→42` with the thumb bump on the left at x0; bottom edge y62, x `13→34`.
+> - **The finger is perfectly vertical** — rows y8 and y14 have identical spans. No lean.
+> - **Fill** `#FFF`; **stroke** `#000` at `stroke-width: 6` centred (≈3 px visible each side —
+>   ~9.5 % of the hand's width; this heavy outline is *the* defining visual trait, do not thin it).
+> - **Numeral** in the **player colour** (P1 `#008CFF`), glyph box centred at `(22.5, 41)`, cap
+>   height `17`; bold, slightly condensed geometric sans (Helvetica/Arial Bold).
+> - **Bottom tint:** linear gradient of the *same player colour*, `0 %` alpha at y≈38 → `27 %` alpha
+>   at y62. (§4.2 — not a grey shading gradient.)
+> - **Shadow:** duplicate silhouette, filled `rgba(0,0,0,0.353)`, translated `(+3.6, +3.6)` in this
+>   viewBox — that is the retail `(+3, −3)` on a 54-unit quad converted to texture units
+>   (`3 × 64/54 = 3.56`) — with a ~3 px feather. Draw it **first**, beneath the hand.
+> - **Grab pose:** identical, minus the finger, `viewBox 0 0 43 43`, **bottom-aligned** to the
+>   pointing hand (both are 42–43 wide and share a bottom edge, so the fist must not jump on swap).
+> - **Hotspot and rotation pivot are the same point:** the fingertip, `(12.5, 0)`.
 
 ---
 
@@ -892,12 +1444,24 @@ cursor: url("hand.png") 12 0, auto;
   from Firefox 4), Safari 3, **Safari iOS 13.4**. The **`x y` positioning syntax** is separately
   tracked and is **`false` on Safari iOS** — "If this value is used, the iPad will display the
   `default` pointer instead."
-- **SVG cursors are the inconsistent part.** MDN documents the requirement, and Chromium's code
-  explicitly branches on `image->IsSVGImage()` (it rasterises SVG against the OS's system-cursor size
-  and *skips* the device-scale multiplier for SVG). But BCD does not track an `svg` subfeature for
-  `cursor`, so there is no per-version support table to cite. **[Inferred]** Treat SVG cursors as
-  "works in Firefox and Chromium, do not rely on it in Safari" and always list a PNG before the
-  keyword fallback.
+- **SVG cursors — better than the folklore, but still not citable to a version table.** MDN documents
+  the requirement, and Chromium's code explicitly branches on `image->IsSVGImage()`. BCD tracks no
+  `svg` subfeature for `cursor`, so there is no official per-version table. **[Inferred, from release-branch
+  source diffing]** `SVGImage` handling is **absent** from `event_handler.cc` at Chrome 80 and 85 and
+  **present** at 86 and later, which puts Chromium SVG-cursor support at roughly **Chrome 86
+  (Oct 2020)**. Treat that as a strong inference, not a cited fact — it comes from comparing source
+  branches, not from a changelog or bug entry (Chromium's gitiles history now 403s without sign-in).
+  **The common advice that "Chrome doesn't support SVG cursors" is stale.**
+- **SVG cursors require an intrinsic size** — an explicit `width`/`height` on the root `<svg>`.
+  Support for SVG *without* a natural size is only a spec "may". A `viewBox` alone is not enough.
+- **Animated GIF does not animate.** Blink snapshots a single frame
+  (`image->AsSkBitmapForCurrentFrame(...)`). Animated SVG is a spec *"should"*, not a *"must"*. There
+  is **no reliable way to animate a `cursor: url()`** — another reason Approach A cannot express the
+  press/grab states.
+- **No CORS gate.** None of the three engines' cursor code paths check origin — they check only
+  "did the image decode". Cursor images are ordinary CSS image subresources (no-cors fetch), so
+  cross-origin cursor images load fine. The restrictions that matter are size and viewport
+  containment, not origin.
 
 ### The size caps — the numbers, from engine source
 
@@ -908,19 +1472,66 @@ This is the part that kills Approach A for this project.
 | **Chromium/Blink** | `kMaximumCursorDIPSize = 128` in `ui/base/cursor/cursor.cc` (`Cursor::AreDimensionsValidForWeb`) | Anything **> 128 × 128 DIP** is rejected and the declaration is skipped — silently, moving to the next item in the cursor list. |
 | **Chromium/Blink** | `kMaximumCursorSizeWithoutFallback = 32` in `third_party/blink/renderer/core/input/event_handler.cc` | For cursors **> 32 DIP** in either dimension, Blink additionally computes the cursor's rect and **drops it entirely if it is not fully contained in the visual viewport**. The comment: *"For large cursors below the max size, limit their ability to cover UI elements by removing them when they are not fully contained by the visual viewport."* |
 | **WebKit** | `const int maximumCursorSize = 128;` in `Source/WebCore/page/EventHandler.cpp` | *"Limit the size of cursors (in UI pixels) so that they cannot be used to cover UI elements in chrome."* — over 128 → `continue` (skip this cursor). **And WebKit applies the containment check to *every* url() cursor regardless of size:** `if (!visibleContentRect.contains(cursorRect)) continue;` |
-| **Firefox** | — | MDN: *"on Firefox and Chromium cursor images are restricted to 128x128 pixels by default, but it is recommended to limit the cursor image size to 32x32 pixels."* |
+| **Gecko/Firefox** | **No 128 constant in current source.** The limit is the pref `layout.cursor.block.max-size`, **default 32** ([`StaticPrefList.yaml`](https://searchfox.org/mozilla-central/source/modules/libpref/init/StaticPrefList.yaml#11403)) | Cursors larger than the pref are blocked **only if** the cursor rect is not fully inside the top-level content viewport (`ShouldBlockCustomCursor`, [`EventStateManager.cpp`](https://searchfox.org/mozilla-central/source/dom/events/EventStateManager.cpp#4866)). |
+
+> **Correction to the widely-repeated "128 × 128" figure — including MDN's own prose.** MDN's page
+> says *"on Firefox and Chromium cursor images are restricted to 128x128 pixels by default."* MDN's
+> **browser-compat-data** for the same property says something different: *"Starting in Firefox 67,
+> the maximum size allowed for custom cursors is 32x32 pixels."*
+> ([BCD `css/properties/cursor.json`](https://github.com/mdn/browser-compat-data/blob/main/css/properties/cursor.json))
+> Reading the engine source resolves the contradiction: **there are two different thresholds, and
+> people collapse them into one.**
+>
+> - **128** is the absolute *reject* threshold — and it exists only in **Chromium and WebKit**.
+> - **32** is the threshold above which **all three engines** additionally require the cursor's
+>   bounding box to be **entirely inside the viewport**.
+>
+> The practical consequence is the one that actually bites: **a cursor larger than 32 px reverts to
+> the keyword fallback whenever it approaches a screen edge.** You get a visible flicker back to the
+> arrow all around the perimeter of the window. In **WebKit this is worse still** — the containment
+> check sits *outside* the size branch, so **every** `url()` cursor of any size is dropped near an
+> edge.
+
+**Why these limits exist** — worth knowing, because it means they will never be relaxed. This is
+anti-**cursorjacking** hardening: a large cursor bitmap whose visible arrow is far from its actual
+hotspot lets a page make clicks appear to land on browser chrome. See
+[Mozilla bug 1445844 / CVE-2019-11695](https://bugzilla.mozilla.org/show_bug.cgi?id=1445844); Blink's
+own comment is *"Limit the size of cursors so that they cannot be used to cover UI elements in
+chrome."* MDN adds that *"cursor changes that intersect toolbar areas are commonly blocked to avoid
+spoofing."*
+
+**No engine shrinks an oversized cursor.** The spec says a UA "must" scale proportionally if the OS
+limits cursor size ([css-ui-4](https://www.w3.org/TR/css-ui-4/#cursor)), but all three engines simply
+`continue` — silently skipping that `<cursor-image>` and moving to the next entry, ultimately the
+mandatory keyword. Nothing is resized, and nothing is logged.
+
+**DPI interaction.** Chromium applies the cap in **DIP**, computed as
+`ceil(physical_px / image_scale_factor)`, where the factor comes from `StyleImage::ImageScaleFactor()`.
+For a plain `url(x.png)` that factor is **1** — so **a 200 × 200 PNG is rejected even on a 2× display.**
+The escape hatch is `image-set()`, which sets the factor explicitly:
+
+```css
+/* 256px bitmap counts as 128 DIP → accepted; the hotspot is scaled by the same factor. */
+cursor: image-set(url(hand@2x.png) 2x) 64 16, pointer;
+```
+
+SVG is handled differently in both Chromium and WebKit: the scale is multiplied by the device scale
+factor and the SVG is rasterised at native resolution, so **SVG cursors are crisp on HiDPI** and the
+128 cap applies to the CSS-px intrinsic size.
 
 Also from Blink: `static constexpr base::TimeDelta kCursorUpdateInterval = base::Milliseconds(20);`
 — *"Set to 50Hz, no need to be faster than common screen refresh rate."* **Native cursor-shape updates
 are throttled to 50 Hz**, so a `cursor: url()` that swaps images on state change has up to 20 ms of
-built-in latency. And Chromium multiplies custom cursors by `cursor_accessibility_scale_factor_` — an
-**OS accessibility "large cursor" setting can push a legal 100 px cursor over the 128 cap and make it
-vanish for exactly the users who most need to see it.**
+built-in latency. And Chromium multiplies custom cursors by `cursor_accessibility_scale_factor_`
+(Gecko: `LookAndFeel::FloatID::CursorScale`) — an **OS accessibility "large cursor" setting can push a
+legal 100 px cursor over the cap and make it vanish for exactly the users who most need to see it.**
+(§12.6 revisits this: the same fact is an *argument in Approach A's favour* on accessibility grounds.)
 
 **Verdict on Approach A.** The authentic cursor is ~102 × 147 CSS px at 1080p (§8). That is over the
-128 cap on height, so it would be **silently ignored** in Chromium *and* WebKit. Even shrunk to fit,
-anything over 32 px vanishes near the window edges in both engines. And rotation is impossible — you
-would need a pre-rendered image per angle. **`cursor: url()` cannot do what this project wants.**
+128 cap on height, so it is **silently ignored** in Chromium *and* WebKit. Even shrunk to fit under
+128, anything over **32** px reverts to the arrow near every window edge in **all three** engines —
+and in WebKit at any size. And rotation is impossible — you would need a pre-rendered image per angle,
+swapped at a 50 Hz ceiling. **`cursor: url()` cannot do what this project wants.**
 
 *(Where it **is** the right tool: a small, static, non-rotating cursor ≤ 32 × 32. If you want a
 low-cost "Wii flavour" fallback, ship a 32 × 32 PNG of the hand for reduced-motion / low-power users —
@@ -968,11 +1579,69 @@ if (e.pointerType === 'touch') return;
 That alone justifies it. `mousemove` on a touchscreen fires synthesised events after a tap, which
 makes a custom cursor teleport around on mobile.
 
-Two extras worth knowing:
-- **`event.getCoalescedEvents()`** returns the sub-frame samples the browser merged into this event.
-  Useful for drawing apps; **not** useful here — we only want the latest position.
+Three extras worth knowing:
+
+- **`event.getCoalescedEvents()`** ([MDN](https://developer.mozilla.org/en-US/docs/Web/API/PointerEvent/getCoalescedEvents))
+  returns the sub-frame samples the browser merged into this event. MDN: *"Instead of a stream of many
+  `pointermove` events, user agents coalesce multiple updates into a single event… there is a
+  reduction in the granularity and accuracy when tracking, especially with fast and large movements."*
+  For a drawing app you want all of them; **here you want only the last one**, which is the freshest
+  position available this frame:
+
+  ```js
+  const list = e.getCoalescedEvents?.();
+  const s = list?.length ? list[list.length - 1] : e;   // freshest sample
+  target.current.x = s.clientX; target.current.y = s.clientY;
+  ```
+
+  Support: **Limited availability, not Baseline**, secure context only — hence the `?.` and fallback.
+
+- **`pointerrawupdate`** ([MDN](https://developer.mozilla.org/en-US/docs/Web/API/Element/pointerrawupdate_event))
+  — raw, un-coalesced, higher-frequency updates, *"intended for applications that require
+  high-precision input handling."* **Chromium-only, not Baseline, secure context required**, and MDN
+  explicitly warns *"listening to `pointerrawupdate` events can affect performance… add these
+  listeners only if your JavaScript needs high-frequency events."* For a cursor whose output is capped
+  at one draw per frame, the gain is real but small — it gets you the freshest sample *within* the
+  frame. Feature-detect and fall back:
+
+  ```js
+  const moveEvent = 'onpointerrawupdate' in window ? 'pointerrawupdate' : 'pointermove';
+  ```
+
+  **[Inferred]** For this project, marginal. The cursor is deliberately smoothed (§6.2), so
+  sub-frame freshness is being thrown away downstream anyway. Reach for it only if the owner drops the
+  smoothing and wants maximum responsiveness.
+
+- **`getPredictedEvents()`** (same MDN page) returns the UA's **extrapolated future** positions. It is
+  the only standard mechanism that can put a DOM follower *ahead* of its last known position, i.e.
+  partially cancel the structural lag below. It **overshoots on direction changes**, so use it for the
+  visual only and **never** for hit-testing. **[Inferred]** Mutually exclusive in spirit with the
+  Wii-authentic smoothing — you would be predicting forward and then lerping backward. Pick one.
+
 - **`setPointerCapture()`** — relevant if you build channel drag-and-drop, so the drag keeps receiving
   events when the pointer leaves the element.
+
+### The latency floor — be honest about this
+
+The native cursor is composited by the **OS/window server**, on most platforms as a hardware cursor
+plane, entirely outside the browser's rendering pipeline; the renderer only *tells* the browser
+process which cursor to show. A DOM element must go input → renderer main thread → style → composite
+→ GPU → display. **It is structurally at least one frame (≈16.7 ms at 60 Hz) behind, usually more**,
+and it does not benefit from the OS's above-vsync cursor update rate.
+
+**[Uncertain]** I could not find a primary source that *quantifies* the delta — no reachable
+Chromium/WebKit design doc states a number. Treat "one to three frames behind" as an engineering
+expectation, not a cited fact.
+
+> **The tension this project has to resolve, stated plainly.** General custom-cursor advice says
+> *never add easing or trailing* — it deliberately adds lag on top of a technique that is already
+> structurally laggier than native. But §6.2 establishes that the real Wii pointer **was** smoothed
+> (inside KPAD), and the lag is a defining part of the feel. **Both are true.** The DOM follower's
+> ~1–3 frames of unavoidable lag is *added to* whatever smoothing you dial in — so a lerp factor
+> tuned by eye on a native cursor will feel noticeably heavier here. **[Inferred] Start the smoothing
+> weaker than feels right** (`k` toward 0.3–0.4 rather than 0.18) and let the structural lag supply
+> the rest, rather than stacking the two. And expose it as a constant you can tune, because this is
+> the single parameter most likely to need adjusting against a real capture.
 
 ### Leaving and entering the window
 
@@ -1012,8 +1681,16 @@ Secondary wins for B: you get the **smoothing/lag** (§6.2) which is a defining 
 flatly impossible with `cursor: url()`; you get the **rotating drop shadow** (§3.4) as a real layer;
 and you can render the **player numeral** as live text rather than four PNGs.
 
-The cost is everything in §12.6 (accessibility) and §12.9 (pitfalls). Budget for those — they are not
-optional extras.
+**Be honest about what the recommendation costs.** On one axis — respecting OS pointer-accessibility
+settings — **Approach A is the better technique and Approach B is strictly worse** (§12.6.1):
+`cursor: url()` still gets the user's accessibility scale applied by the engine; a DOM follower
+bypasses size, colour, contrast and trails entirely, and **nothing in CSS can even detect that it has
+done so**. This recommendation is "Approach A is technically incapable of the requirement, so we take
+Approach B and pay an accessibility cost we cannot fully mitigate" — not "Approach B is better."
+The user toggle in §12.6.6 is the only real remedy, which is why it is not optional.
+
+The rest of the cost is everything in §12.6 (accessibility) and §12.9 (pitfalls). Budget for those —
+they are not optional extras.
 
 **Hybrid worth considering [Inferred]:** ship a 32 × 32 `cursor: url()` hand as the *fallback* for the
 cases where the DOM cursor is disabled (reduced motion, user toggle off, low-end device). It stays
@@ -1026,9 +1703,11 @@ So this is a design decision, and the project has to make it. Four defensible op
 
 **Option 1 — Fixed 15° tilt (recommended default).**
 Set `rotate(15deg)` (counter-clockwise, fingertip leaning left) and never change it.
-- *For:* It is **Nintendo's own number** — the hard-coded `Classic::getHorizon()` fallback used when
-  there is no roll data, which is exactly our situation (§6.3). It is not an invention; it is the
-  documented "no roll available" answer.
+- *For:* It is **Nintendo's own number**, and as of the second research pass it is confirmed **twice,
+  independently** (§6.3): derived from the `Classic::getHorizon()` fallback vector in the System Menu,
+  and written as a bare literal `15.0f` in the HOME Menu's own cursor code. Both fire under exactly
+  the condition a web clone is permanently in — *a pointing device with no roll axis.* This is not an
+  invention or a stylistic guess; it is the documented "no roll available" answer, twice over.
 - *For:* Zero cost, zero motion, immune to `prefers-reduced-motion` concerns, deterministic for
   screenshot tests.
 - *Against:* Loses the liveliness people remember.
@@ -1083,6 +1762,13 @@ What the pose *should* be — see §5.4. Authentic answer: **nothing changes on 
 is for **A+B drag**. If you want click feedback anyway, prefer `scale(0.94)` for 70 ms over a pose
 swap, and reserve the fist for actual drags (`pointerdown` + movement over a channel tile).
 
+**When the click should *fire* is a separate question — see §5.4a.** The console does not activate on
+the press edge; it activates on the **5th consecutive frame** A is held (≈83 ms), and **starting a
+drag cancels the pending activation**. The cancel-on-drag half is worth implementing unconditionally
+(it is what stops a channel-reorder drag from also counting as a channel launch). The 83 ms delay is
+authentic but costs responsiveness for no benefit on a jitter-free mouse — put it behind a flag,
+default off.
+
 ## 12.6 Accessibility and UX — the honest version
 
 This is where custom cursors earn their bad reputation. Be straight about it:
@@ -1090,12 +1776,36 @@ This is where custom cursors earn their bad reputation. Be straight about it:
 **A custom cursor is a genuine accessibility regression, and there is no way to make it a neutral
 one.** The mitigations below reduce the harm; they do not eliminate it.
 
-1. **Users depend on the native cursor.** Operating systems let people enlarge the pointer, invert it,
-   change its colour, add a locator ring, or use high-contrast pointer themes — precisely because
-   pointer visibility is a real access need. `cursor: none` **overrides every one of those settings**.
-   A user who has set a 3× black-on-white pointer in Windows Ease of Access gets your 100 px white
-   glove instead. Chromium's `cursor_accessibility_scale_factor_` exists specifically to honour that
-   OS setting for `cursor: url()`; a DOM follower bypasses it entirely.
+0. **What WCAG actually says: nothing directly.** Worth stating so nobody argues from a criterion
+   that doesn't apply. **[Official]** [SC 2.5.8 Target Size (Minimum)](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html)
+   governs the **target** (≥ 24 × 24 CSS px), not the pointer — though it is *indirectly* relevant
+   here, because a ~100 px hand makes precise aiming harder, so generous hit targets matter more in a
+   Wii-style UI than they otherwise would. [SC 1.4.11 Non-text Contrast](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html)
+   requires 3:1 for "user interface components" and "graphical objects"; its Understanding document
+   does not address author-supplied cursors. **[Inferred]** A replacement cursor is arguably a
+   graphical object required to operate the page, so hold it to 3:1 against every background — which
+   the Wii hand's heavy black outline and drop shadow already achieve by design (§3.3–3.4). **There is
+   no success criterion that prohibits a custom cursor, and none that requires an opt-out.** The case
+   for one (point 6) is a real-harm argument, not a compliance argument. Do not let anyone tell you
+   otherwise in either direction.
+1. **Users depend on the native cursor — and this is the one harm you cannot mitigate.** Operating
+   systems let people enlarge the pointer, recolour it, outline it, add trails, or shake-to-locate it,
+   precisely because pointer visibility is a real access need:
+   [Windows](https://support.microsoft.com/en-us/windows/make-windows-easier-to-see-c97c2b0d-cadb-93f0-5fd1-59ccfe19345d)
+   (pointer colour/size, pointer trails), [macOS](https://support.apple.com/guide/mac-help/change-pointer-display-settings-accessibility-mchl0ec8ce69/mac)
+   (pointer size, outline/fill colour, shake to locate). W3C names it explicitly as a low-vision user
+   need: *"Increase the size of the mouse pointer, which is usually done at the operating system
+   level"* ([Accessibility Requirements for People with Low Vision](https://www.w3.org/TR/low-vision-needs/)).
+
+   **The asymmetry that matters:** `cursor: url()` **still gets the OS accessibility scale applied**
+   (Blink's `cursor_accessibility_scale_factor_`, Gecko's `LookAndFeel::FloatID::CursorScale` — §12.1).
+   A `cursor: none` + DOM follower **bypasses all of it**: size, colour, high-contrast pointer and
+   trails are simply gone. So on this specific axis **Approach A is the more accessible technique and
+   Approach B is the less accessible one**, which is the honest cost of the recommendation in §12.3.
+
+   **And there is no way to detect it.** There is no media query for "the user has enlarged or
+   recoloured their pointer." You cannot adapt; you can only offer the toggle in point 6.
+
    *Note also:* people with motor impairments often move the pointer in small corrective increments —
    **and our smoothing (§6.2) actively fights that.** Lag that reads as charming to one user reads as
    "the computer is not responding to me" to another. This is the strongest argument for §12.6.6.
@@ -1106,6 +1816,36 @@ one.** The mitigations below reduce the harm; they do not eliminate it.
    reduced-motion as a signal to fall back to the native cursor entirely — it is a reasonable, and
    defensible, reading.
    Docs: https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-reduced-motion
+
+   **[Inferred] But be precise about what counts.** MDN describes the query as detecting a preference
+   *"to minimize the amount of non-essential motion."* **1:1 cursor tracking is not non-essential
+   motion** — it is the pointer doing its job, and disabling it would be absurd. What must go under
+   `reduce` is everything *added*: the smoothing/lag, any velocity-driven rotation (§12.4 Option 2),
+   press animations, idle bobbing, trails. The distinction is "motion the user did not command"
+   versus "motion that is the user's own input rendered."
+
+2a. **`forced-colors` / Windows High Contrast — a specific, concrete failure.** **[Official/MDN]** In
+   forced-colors mode the UA overrides `color`, `background-color`, `border-color`, `outline-color`
+   and SVG `fill`/`stroke`; **`box-shadow` and `text-shadow` are forced to `none`**; and
+   `background-image` is forced to `none` for non-`url()` values
+   ([MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/forced-colors)).
+
+   For this cursor specifically that means an **inline SVG hand loses its white fill and black
+   stroke, and the drop shadow disappears** — i.e. the exact two features (§3.3, §3.4) that make it
+   legible. You would ship a shape that is invisible or wrong for users who have deliberately asked
+   for a constrained palette. A `url()`-based `<img>`/`background-image` survives the override, but
+   that is the wrong lesson. **The right response is to disable the custom cursor entirely:**
+
+   ```css
+   @media (forced-colors: active) {
+     .wii-cursor { display: none; }
+     .wii-cursor-active, .wii-cursor-active * { cursor: auto; }
+   }
+   ```
+
+   A forced-colors user has explicitly configured a pointer they can see. Give it back to them. This
+   is the cheapest high-value accessibility fix in this entire section and the reference
+   implementation in §12.10 should include it.
 3. **Visibility against all backgrounds.** The Wii's own solution is the ~3 px black outline plus a
    drop shadow (§3.3, §3.4) — that is *why* it is drawn that way. Keep both. Do not "modernise" the
    cursor into a thin-stroked or flat-white shape; it will disappear over the light-blue Wii Menu
@@ -1144,16 +1884,48 @@ tap was, lags behind scrolls, and covers content).
 const hasFinePointer = window.matchMedia('(any-pointer: fine) and (any-hover: hover)').matches;
 ```
 
+**[Official/MDN]** ([`@media (pointer)`](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/pointer)) —
+`pointer`/`hover` describe the **primary** input; `any-pointer`/`any-hover` describe **any available**
+input.
+
 - `(pointer: coarse)` — the *primary* input is imprecise (finger).
-- `(any-pointer: fine)` — *some* input is precise. Important for hybrids: a Surface or an iPad with a
-  trackpad should get the cursor when the mouse is used.
-- Best of all: **decide per event.** `pointermove` gives you `e.pointerType`; enable the cursor on the
-  first `pointerType === 'mouse' | 'pen'` event and hide it on the first `'touch'`. That handles a
-  laptop with a touchscreen correctly, in both directions, with no guessing.
+- `(pointer: fine)` — the primary input is accurate (mouse).
+- `(any-pointer: fine)` — *some* input is precise.
+
+**The hybrid pitfall, stated precisely — this is the common bug.** On a laptop with a touchscreen,
+`(pointer: fine)` matches (mouse is primary) **and `(any-pointer: coarse)` also matches** (a touch
+device exists). Therefore:
+
+- Gating **off** with `@media (any-pointer: coarse)` **wrongly disables the cursor on every
+  touchscreen laptop.** Do not do this — it is the single most common way this goes wrong.
+- Gating **on** with `(pointer: fine) and (hover: hover)` is the correct *static* test, but it stays
+  on while such a user is actually touching the screen.
+
+**So use both layers.** CSS sets the initial state; JS `pointerType` tracks the live one:
+
+```css
+@media (pointer: coarse), (hover: none), (forced-colors: active) {
+  .wii-cursor { display: none; }
+  .wii-cursor-active, .wii-cursor-active * { cursor: auto; }
+}
+```
+
+```js
+// Live switching: handles a touchscreen laptop correctly in BOTH directions.
+const onAnyPointer = (e) => {
+  document.documentElement.dataset.cursor =
+    (e.pointerType === 'mouse' || e.pointerType === 'pen') ? 'wii' : 'native';
+};
+```
 
 Degradation is then trivially correct: never apply `cursor: none`, never mount the element, never
-start the rAF loop. Note also **`cursor: none` is unsupported on Safari iOS** (BCD), so even the CSS
-half would silently no-op there — but relying on that is not a plan.
+start the rAF loop.
+
+**iPadOS is its own case.** **[Official/MDN]** *"By default, the iPad cursor is displayed as a circle,
+and the only supported value that will change an appearance of the pointer is `text`."* BCD lists
+`cursor: none` as **`false`** for Safari iOS. So on an iPad with a trackpad you would get **the system
+circle *plus* your fake hand** — two cursors. The media-query gate above is what prevents that; the
+CSS half silently no-opping is *not* a plan, because the DOM element would still mount.
 
 ## 12.8 Performance
 
@@ -1170,6 +1942,16 @@ The cost of a per-frame-updated element is small **if** it is confined to the co
   `filter` on a parent that doesn't rotate.
 - **Prefer inline SVG or a single `<img>`, not a nested DOM tree.** Every extra element is another
   thing to composite. One `<svg>` with two paths (shadow + hand) plus one `<text>` is plenty.
+- **`contain: layout paint size`** on the follower isolates it: its style/layout work cannot escape
+  into the rest of the page, and the UA can skip it during unrelated invalidations. `contain: size`
+  requires explicit `width`/`height`, which we have. Cheap, and worth adding alongside `will-change`.
+- **Use `{ passive: true }`** on the pointer listeners so they can never block scrolling.
+- **Never read layout in the move handler.** `getBoundingClientRect()`, `offsetWidth`, `scrollTop` all
+  force synchronous layout. If you add a magnetic/snap-to-target effect, cache the rects and
+  invalidate them with a `ResizeObserver` — never measure per frame.
+- **Keep the layer small.** Compositor-layer GPU memory is proportional to layer *area*. The element
+  should be the size of the hand (~100 × 150), never a full-viewport container with the hand
+  positioned inside it — that is a full-screen layer for a hand-sized sprite.
 - **Cancel the loop** on unmount, on `visibilitychange`, and when the cursor is hidden. A rAF loop that
   runs while nothing is visible is pure waste, and on battery it is measurable.
 - **Don't re-render React.** Coordinates live in refs. If the component re-renders on every mouse
@@ -1193,21 +1975,76 @@ The cost of a per-frame-updated element is small **if** it is confined to the co
    plans Playwright `toHaveScreenshot()` baselines plus a `pixelmatch`/SSIM comparison against
    `reference_screen.png`. A cursor element **will** be captured by `page.screenshot()` (the *native*
    cursor is not, but a DOM element is), it will sit at a semi-arbitrary position, and it will produce
-   diff noise on every run. Do all three:
-   - render the cursor only when a flag is set: `if (import.meta.env.MODE === 'test') return null;`
-     or a `?nocursor=1` query param the test harness appends;
-   - mark it for CSS removal — `<div data-testid="wii-cursor">` plus a Playwright
-     `styleTag`/`mask` — `toHaveScreenshot({ mask: [page.getByTestId('wii-cursor')] })` is the
-     purpose-built option and is the least invasive;
-   - never let it into the `reference_screen.png` comparison path, since the reference has no cursor.
+   diff noise on every run — and unlike the clock or the static canvas, this is noise with **no
+   informational value whatsoever**, because the cursor's position in a screenshot is an artifact of
+   where Playwright happened to leave the mouse.
+
+   **Recommendation, in priority order — and note the methodology doc's own stance.**
+   `visual-regression-tooling.md` argues (§"Masking dynamic regions") that *masking is the blunt
+   instrument… Prefer freezing over masking, and reserve masking for things genuinely outside your
+   control.* The cursor is the rare case where the **strongest option is neither** — it is
+   *suppression*, because unlike the clock there is nothing about the cursor we want the reference
+   comparison to verify. So:
+
+   1. **Suppress it entirely in test builds — do this one.** The cleanest hook is a prop or context
+      flag driven by a query param the harness appends, so the same production bundle is under test:
+
+      ```jsx
+      // App.jsx
+      const showCursor = !new URLSearchParams(location.search).has('nocursor');
+      return <>{showCursor && <WiiCursor />}<Menu /></>;
+      ```
+      ```js
+      // playwright fixture
+      await page.goto('/?nocursor=1');
+      ```
+
+      Prefer this over `import.meta.env.MODE === 'test'`, which diverges the bundle from production
+      and can hide real bugs. Suppression also means `cursor: none` is never applied, so **the
+      native pointer is absent from the capture too** (Playwright's `page.screenshot()` does not
+      render the OS cursor) — giving a genuinely cursor-free image that is directly comparable to
+      `reference_screen.png`, which has no cursor either.
+
+   2. **Mask as the fallback**, for interactive/MCP-driven captures where you cannot control the URL.
+      `toHaveScreenshot({ mask: [page.getByTestId('wii-cursor')] })` paints the region magenta in
+      **both** baseline and candidate (`maskColor` default `#FF00FF`), so it can never differ — but
+      per the methodology doc, it can never be verified either. Acceptable here precisely because
+      there is nothing to verify.
+
+   3. **For the standalone `reference_screen.png` scorer** (`sharp` → `pixelmatch` + SSIM), masking
+      is not available — it is not a Playwright assertion. Use suppression (option 1) on the capture
+      side. If for some reason you cannot, the methodology doc notes `odiff`'s
+      `-i x1:y1-x2:y2,...` ignore-regions flag as the CLI-level equivalent, but a moving cursor has
+      no fixed region to ignore, so this is a poor fit. **Suppression is the only clean answer for
+      the reference-match path.**
+
+   4. **Do not** try to solve this by parking the mouse in a corner. `page.mouse.move(0, 0)` still
+      leaves the hand rendered at `(0,0)`, and the smoothing (§6.2) means its exact position depends
+      on how many frames elapsed — nondeterministic by construction. This is a trap worth naming.
+
    Doing this from day one is much cheaper than debugging flaky diffs later.
-4. **Iframe boundaries.** A `position: fixed` element in the top document **cannot be drawn over an
-   iframe's content in any way you control** — it is drawn over it visually (it's the same compositor),
-   but the iframe never sends you `pointermove`, so **your cursor freezes at the iframe's edge while
-   the real pointer moves inside it.** And the iframe shows its own native cursor. There is no
-   cross-origin fix. Options: avoid iframes; or on `pointerenter` of the iframe, hide the custom cursor
-   and restore `cursor: auto` so the user gets a working native pointer inside it. Same-origin iframes
-   can be handled by injecting the same listeners into the child document.
+4. **Iframe boundaries — two separate problems, often conflated.** Be precise, because the fixes
+   differ:
+
+   **(a) `cursor: none` does not cross into an iframe.** CSS inheritance operates within a *single*
+   document tree. The child document's root element has no parent to inherit from, and the embedding
+   `<iframe>` element's computed `cursor` is irrelevant to the nested document. So **the native
+   cursor reappears over any iframe** — embedded video, maps, ads. Same-origin: inject the same
+   stylesheet into the child document. **Cross-origin: impossible** — you will have two cursors
+   visible simultaneously.
+
+   **(b) Your follower paints fine but freezes.** Contrary to a common belief, a `position: fixed`
+   element in the parent **can** paint over a cross-origin iframe — it is just a positioned element in
+   the parent's stacking context, and nothing about iframes blocks compositing over them. **What
+   breaks is input:** while the pointer is over a cross-origin iframe, pointer events are dispatched
+   in the *child's* document and the parent receives no `pointermove`. So your hand is **drawn
+   correctly but stale — frozen at the point it last had data** while the real pointer moves inside.
+   This is a same-origin-policy consequence, not a paint-order one.
+
+   **Fixes, in order:** avoid iframes (easily achievable for this project); or on `pointerenter` of
+   the `<iframe>` element, hide the custom cursor and restore `cursor: auto` so the user gets one
+   working native pointer inside it; or, same-origin only, inject the listeners into the child
+   document and forward coordinates to the parent with the iframe's offset added.
 5. **`cursor` inheritance leaks.** Any component or library that sets `cursor: pointer` /
    `grab` / `text` re-enables the native cursor on that element. The universal selector
    (`html.wii-cursor * { cursor: none; }`) fixes it but is a blunt instrument — remember to
@@ -1219,6 +2056,29 @@ The cost of a per-frame-updated element is small **if** it is confined to the co
    pointer *behind* it and can look wrong. Minor, but hide on `contextmenu` if it bothers you.
 8. **The 50 Hz native-cursor throttle** (`kCursorUpdateInterval`, §12.1) does not apply to the DOM
    follower — a mild point in Approach B's favour.
+9. **Hotspot drift under `transform`.** If the hotspot is baked in as a negative margin (as in §12.10)
+   and you later `scale()` or `rotate()` the sprite, **the hotspot moves** unless `transform-origin`
+   is set to the hotspot point. Set `transform-origin` to the fingertip so scale and rotation pivot
+   around the actual point of aim — which is also exactly what the console does (§6.3: rotation about
+   a pane whose origin coincides with the point of aim). The §12.10 CSS already does this; the point
+   is that it is load-bearing, not cosmetic.
+10. **Pointer Lock is the wrong tool — but know why.** **[Official/MDN]**
+   [Pointer Lock API](https://developer.mozilla.org/en-US/docs/Web/API/Pointer_Lock_API) *"gives you
+   access to raw mouse movement, locks the target of mouse events to a single element, eliminates
+   limits on how far mouse movement can go in a single direction, and removes the cursor from view."*
+   While locked, `clientX`/`clientY` are *"held constant, as if the mouse is not moving"* — you
+   integrate `movementX`/`movementY` yourself, optionally with `{ unadjustedMovement: true }` to
+   bypass OS pointer acceleration.
+
+   It is genuinely tempting: raw deltas, no OS round-trip, and it is arguably the *most* faithful
+   analogue of a Wii Remote (a relative pointing device with its own gain curve). **Do not use it
+   here.** It requires a user gesture to enter, shows a browser "press Esc to exit" notification,
+   traps the pointer so it can never leave the window, and breaks every normal browsing affordance.
+   Reserve it for a deliberate full-screen "point at the screen" demo mode, if ever.
+11. **SPA remounts re-trigger the load flicker.** If the cursor component lives *inside* the router,
+   every navigation unmounts and remounts it, replaying pitfall 1 (invisible until the next
+   `pointermove`) on every page change. **Hoist it above the router**, as a sibling of the routed
+   tree, so it mounts once for the session.
 
 ## 12.10 Reference implementation (React)
 
@@ -1258,7 +2118,14 @@ export default function WiiCursor({ playerNumber = 1, enabled = true }) {
     window.matchMedia('(prefers-reduced-motion: reduce)').matches
   );
 
-  const active = enabled && fine;
+  // Visual-regression escape hatch (§12.9.3). The test harness navigates to `/?nocursor=1`,
+  // which suppresses both the element AND the `cursor: none` class — so captures contain
+  // no cursor of any kind and stay comparable to reference_screen.png.
+  const suppressed =
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).has('nocursor');
+
+  const active = enabled && fine && !suppressed;
 
   useEffect(() => {
     if (!active) return;
@@ -1374,6 +2241,7 @@ export default function WiiCursor({ playerNumber = 1, enabled = true }) {
   height: auto;
   pointer-events: none;                    /* mandatory (§12.2) */
   will-change: transform;                  /* one legitimate use: a permanent, always-moving layer */
+  contain: layout paint size;              /* isolate from the page's invalidation work (§12.8) */
   z-index: 2147483647;
   opacity: 0;                              /* revealed on the first real pointermove (§12.9.1) */
   /* Pivot on the fingertip so rotation doesn't move the point of aim (§6.3). */
@@ -1388,7 +2256,26 @@ export default function WiiCursor({ playerNumber = 1, enabled = true }) {
 @media (prefers-reduced-motion: reduce) {
   .wii-cursor { transition: none; }
 }
+
+/* Coarse pointer, no hover, or forced colours → give the native cursor back entirely.
+   Note this gates OFF on (pointer: coarse), NOT (any-pointer: coarse) — the latter would
+   wrongly disable the cursor on every touchscreen laptop (§12.7). */
+@media (pointer: coarse), (hover: none), (forced-colors: active) {
+  .wii-cursor { display: none; }
+  .wii-cursor-active,
+  .wii-cursor-active * { cursor: auto; }
+}
 ```
+
+**Three things in that CSS are load-bearing and easy to delete by accident:**
+
+1. `transform-origin` + the matching negative `margin-left` put the **fingertip** on the pointer
+   position *and* make rotation pivot there. Change one without the other and the point of aim drifts
+   as the cursor rotates (§12.9.9).
+2. The `forced-colors` block is not optional politeness — without it, an inline-SVG hand loses its
+   fill, stroke and shadow in High Contrast mode and becomes invisible (§12.6.2a).
+3. `(pointer: coarse)`, **not** `(any-pointer: coarse)`. See §12.7 for why this exact distinction is
+   the most common bug in custom-cursor implementations.
 
 Playwright, to keep it out of visual baselines (§12.9.3):
 
@@ -1407,14 +2294,18 @@ await expect(page).toHaveScreenshot({
 | Archive | `cursor.ash` (NAND), 9 `.brlyt` files | Decomp |
 | Poses | `P{1..4}_Def` (point), `P{1..4}_Cat` (grab) | Decomp |
 | Animations bound to cursor layouts | **zero** — static images only | Decomp |
-| Artwork size | 43 × 62 layout units (point); 43 × 43 (grab, bottom-aligned) | Asset |
+| Artwork size (texture) | 42–43 × 60–62 px (point); 42 × 43 (grab, bottom-aligned) | Asset |
+| Texture → screen scale | quad **54 × 54** for a **64 × 64** cell ⇒ **× 0.84375** | Decomp |
+| Artwork size (on screen) | ≈ **35.4 × 50.6** layout units | Decomp + Asset |
+| Layout canvas | **640 × 480**; cursor's reachable rect 608 × 456 = exactly 95 % of it | Decomp |
 | Screen space | 608 × 456 (4:3) / 832 × 456 (16:9), origin centred | Decomp |
-| On-screen height | **13.6 % of viewport height**; width 9.4 % of viewport height | Derived |
-| Fill / outline | `#FFFFFF` / `#000000`, outline ≈3 px on a 62 px hand (≈4.8 %) | Asset |
-| Shading | grey gradient `#FFF → #BB` over the lower ~35 %, multiply | Asset |
-| Numeral | black, centred at 52 % width / 66 % height of the hand, cap height 27 % of hand height | Asset |
-| Per-player colour | **none** — numeral only | Asset + Decomp |
-| Shadow | separate soft white silhouette, 1 px larger, own rotate pane `N_SRot` | Asset + Decomp |
+| On-screen height | **10.5 % of viewport height**; width 7.4 % of viewport height | Derived |
+| Fill / outline | `#FFFFFF` / `#000000`, outline ≈4 texture px (**≈9.5 % of hand width**) | Asset |
+| Numeral | **player colour**, centred at ~55 % width / ~68 % height, cap height ~28 % of hand height | Asset + Decomp |
+| Bottom tint | **player colour**, 0 % → **27 %** alpha over the lower ~38 % of the hand | Asset + Decomp |
+| **Per-player colour** | **P1 `#008CFF` · P2 `#FF3838` · P3 `#10BD0D` · P4 `#FF9C00`** (`tev color 0`) | Decomp |
+| Remote LED convention | **positional, all-blue** — *not* colour-coded. Different thing entirely. | Official |
+| Shadow | separate soft silhouette texture on pane `N_SRot`, offset **(+3, −3)** on a 54-unit quad, **`rgba(0,0,0,90/255)` = 35.3 % black** | Decomp |
 | Hotspot | fingertip, artwork (12.5, 0) → **29 % across, 0 % down** | Asset |
 | Rotation | `atan2Deg(-horizon.y, horizon.x)`, no clamp, applied to hand *and* shadow | Decomp |
 | Rest tilt (no roll data) | **exactly 15°** | Decomp |
@@ -1429,8 +2320,39 @@ await expect(page).toHaveScreenshot({
 | Cursors on screen | 4 max, drawn 3→0 so P1 is on top | Decomp |
 | Movement sound | **none** — no such ID exists in the 90-entry sound bank | Decomp |
 | Hover sound | `WIPL_SE_BT_TARGETTING` (buttons) / `WIPL_SE_CH_TARGETTING` (channels) | Decomp |
-| Hover rumble | 58.3 ms (7/120 s) motor pulse, 200/300 ms lockout | Decomp |
+| Hover sound panning | **none** — hover blips are centred; only the drag family is panned | Decomp |
+| Panned sounds | `CH_HOLD`, `CH_DRAG`, `CH_SET`, `CH_NOT_MOVE`, `BOARD_*`, `MSG_*` | Decomp |
+| Pan units | layout-space X: ±304 (4:3) / ±416 (16:9) → map linearly to pan −1…+1 | Decomp + Inferred |
+| Hover rumble | 58.3 ms (7/120 s) motor pulse, 300 ms lockout on channel hover | Decomp |
+| **Click activation** | `decide()` = A held **exactly 5 frames** ≈ **83.3 ms**; one-frame pulse | Decomp |
+| **Click cancel** | starting an A+B pinch **disarms** the pending click | Decomp |
+| Pinch latch | on when both A+B down; off when **either** released; order-independent | Decomp |
+| Hit-test boundary | **zero** overshoot (position → ∞ outside the rect) vs 100 units for drawing | Decomp |
 | B-scroll arrow | length clamped **32–128** units, Y-scale ±1 for down/up | Decomp |
+| B-scroll dead zone | **±0.01** normalised DPD units — below it, speed is exactly 0 | Decomp |
+| B-scroll speed law | `±10 · Δy²` (quadratic), **Y axis only**, no inertia on release | Decomp |
+| B-scroll arrow saturation | pull of **≈0.28** screen-heights maxes the arrow; speed keeps rising | Decomp |
+| B-scroll tick | `WIPL_SE_B_SCROLL` once per **128 units of actual scroll travel** | Decomp |
+| B-scroll surfaces | Message Board, text writer, letter writer — **not** the channel grid | Decomp |
+
+### Part B numbers
+
+| Property | Value | Tag |
+|---|---|---|
+| `cursor:url()` hard reject | **128** DIP — Chromium (`kMaximumCursorDIPSize`) and WebKit (`maximumCursorSize`) only | Official |
+| `cursor:url()` viewport-containment threshold | **32** — Chromium, WebKit **and Gecko** (`layout.cursor.block.max-size`) | Official |
+| Gecko's cap | **32**, not 128 — no 128 constant exists in Gecko | Official |
+| WebKit extra rule | containment enforced for **every** custom cursor, any size | Official |
+| Behaviour when exceeded | silently skipped → next list item → the mandatory keyword. **Never scaled down.** | Official |
+| DPI escape hatch | `image-set(url(x@2x.png) 2x)` — raises the effective scale factor | Official |
+| Native cursor-shape update rate | throttled to **50 Hz** (`kCursorUpdateInterval = 20 ms`) | Official |
+| Animated GIF cursor | **single frame only** in Chromium — no animation | Official |
+| SVG cursor | needs an intrinsic `width`/`height`; Chromium ≈ **86+** | Official + Inferred |
+| CORS on cursor images | **none** — ordinary no-cors CSS subresource | Official |
+| DOM-follower latency floor | ≥ 1 frame (~16.7 ms), realistically 1–3 | **Uncertain** |
+| Recommended approach | **`cursor: none` + DOM follower** — Approach A cannot do the size or the rotation | Inferred |
+| Rotation default | `rotate(15deg)` — Nintendo's own no-roll-data value, confirmed twice | Decomp |
+| Screenshot-test handling | **suppress** via `?nocursor=1`, mask only as fallback | Inferred |
 
 ---
 
@@ -1439,23 +2361,47 @@ await expect(page).toHaveScreenshot({
 1. **The contents of `cursor.ash`.** Pane offsets, the exact shadow offset, the rotation pivot, and
    any material colours are inside layout binaries the decomp cannot ship. Everything in §3.4 about
    the shadow's *placement* (as opposed to its existence and its artwork) is inference.
-2. **Whether the `.brlyt` scales the texture.** I assume 1:1 (a 64 px cell drawn at 64 layout units),
-   which makes §8's percentages exact. If the layout applies a scale, every size figure moves
-   proportionally. Confidence: high but not certain — the atlas being authored at exactly 64 × 64 for a
-   456-unit-tall screen is strong circumstantial evidence.
-3. **Rotation sign.** 15° is certain; whether it is clockwise or counter-clockwise on screen is derived
-   from nw4r's Y-up convention, not observed. Verify against a screenshot before committing.
+2. ~~**Whether the `.brlyt` scales the texture.**~~ **RESOLVED 2026-07-25 — and the first pass's
+   assumption was wrong.** The decompiled retail layout draws the 64 × 64 cell into a **54 × 54**
+   quad (× 0.84375), so every size figure shrank by ~16 % (§8). This is exactly the failure mode the
+   gap warned about; it is recorded here rather than deleted because it is a good reminder that
+   "the atlas is authored at 64 × 64" was circumstantial evidence, not proof.
+3. **Rotation sign.** *Partly resolved in the second pass.* The magnitude 15° is certain and now
+   confirmed twice (a derived `atan2` in the System Menu, a literal `15.0f` in the HOME Menu — §6.3),
+   and the **numeric** sign is positive. What remains unverified is what a positive Z rotation *looks
+   like on screen*, which depends on nw4r's rendering convention and is derived, not observed. Verify
+   against a screenshot before committing; if the hand leans the wrong way, negate it.
 4. **KPAD's actual smoothing parameters.** Not in the decomp (KPAD is not decompiled here) and not
    published by WiiBrew. The dragging-circle radius in particular is a free parameter — tune by feel.
-5. **The numeral overlay's blend mode.** I inferred multiply from the intensity-texture structure and
-   verified by reconstruction (the composite matches the iconic cursor exactly). It could technically
-   be a different GX TEV configuration that produces the same result. The *visual outcome* is not in
-   doubt.
+5. ~~**The numeral overlay's blend mode.**~~ **RESOLVED 2026-07-25 — and the first pass's conclusion
+   was wrong in a way worth studying.** The greyscale plate is a **tint mask** for the material's
+   `tev color 0` (the player colour), not a grey multiply overlay: the numeral is **coloured**, not
+   black (§4.2, §4.3). The first pass read the *pixels* correctly and reasoned carefully, but a
+   texture rip cannot contain material state, so the reconstruction silently substituted white for
+   the colour register and produced a plausible-looking wrong answer. **Standing lesson: for anything
+   involving colour, a sprite rip is not sufficient evidence — you need the layout binary.**
+5a. **`P*_Cat.brlyt` internals are still unrecovered.** `mkwcat/starling` decompiled only the four
+   `_Def` layouts. So the grab pose's quad geometry, its `tev color 0`, and which
+   `defcursor_final64_*` texture it binds are **unknown**. **[Inferred]** it almost certainly mirrors
+   `_Def` (same 54 × 54 quad, same player colour, `_b` or `_c` texture), but that is unverified. If
+   the grab fist needs to be pixel-exact, this is the gap to close.
 6. **Whether other Wii system software animated its cursor.** The Wii Shop Channel, Photo Channel and
    most games ran their own cursor code. The "finger curls on click" memory may well be accurate for
    *some* Wii software — it is just not true of the System Menu, which is what this project clones.
 7. **Spriters Resource / primmr availability.** TSR requires a browser `User-Agent` and 403s otherwise;
    `primmr.dev` refused connection during this pass. Both may need manual browsing.
-8. **SVG-as-cursor per-browser versions.** MDN documents the requirement but browser-compat-data has no
-   `svg` subfeature under `cursor`, so no version table exists to cite. Moot for this project given the
-   Approach B recommendation, but flagged as an unresolved fact.
+8. **SVG-as-cursor per-browser versions.** *Partly resolved in the second pass.* BCD still has no
+   `svg` subfeature under `cursor`, so no official version table exists. Release-branch source diffing
+   places Chromium support at **~Chrome 86 (Oct 2020)** — `SVGImage` handling is absent at 80/85 and
+   present at 86+ — but that is an **inference from source, not a citable changelog entry**, and
+   Chromium's gitiles history now 403s without sign-in, so it could not be confirmed. Safari/WebKit
+   has the same SVG code path but no version was established. Moot for this project given the
+   Approach B recommendation.
+9. **The DOM-follower latency penalty is not quantified.** "One to three frames behind native" is an
+   engineering expectation derived from the pipeline architecture, **not a measured or cited figure** —
+   no reachable browser-engine design document states a number. This matters because it compounds
+   with the deliberate smoothing (§6.2, §12.2), and the combined feel is the thing most likely to need
+   tuning against a real capture. Measure it in the actual build rather than trusting the estimate.
+10. **Whether the 5-frame `decide()` delay (§5.4a) feels right on a mouse is untested.** The finding
+   itself is solid decomp evidence; the recommendation to ship it behind a default-off flag is a
+   judgement call about web ergonomics, not something the decomp can settle.

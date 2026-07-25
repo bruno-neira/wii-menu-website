@@ -29,6 +29,26 @@ Research reference for the fan-made React recreation of the Nintendo Wii "Wii Me
   - Some technical discussion indicates that when set to widescreen, the Wii renders using the fuller ~720-pixel-wide active area versus 640 pixels in 4:3 mode — i.e., extra horizontal buffer width is used rather than the UI gaining new grid columns. ([WiiBrew — Video output](https://wiibrew.org/wiki/Video_output); community discussion above)
 - **Practical takeaway:** the Wii Menu's grid is a **fixed 4×3 layout regardless of aspect ratio** — widescreen is handled at the video-output/stretch level, not by the UI reflowing more channel icons into view.
 
+> **⚠️ SUPERSEDED (2026-07-24): the grid count is right; "just a stretch" is wrong.**
+> The System Menu lays out in a **virtual coordinate space with the origin at screen
+> centre**, and it uses a *different* one per aspect ratio
+> (`System::getProjectionRect4x3/16x9()`, `iplSystem.cpp:1187–1199`):
+> **4:3 → 608 × 456** (x ∈ [−304, 304], y ∈ [−228, 228]) and
+> **16:9 → 832 × 456** (x ∈ [−416, 416]). The vertical extent is identical; only width
+> changes, by a factor of 832/608 = 1.36842.
+> Channel tiles are correspondingly **128 × 96 in 4:3 and 170 × 96 in 16:9** — Nintendo
+> authored genuinely wider 16:9 icon art, it did not stretch the 4:3 image (unless the
+> developer opted out, in which case the extra width is *cropped*).
+> And widescreen is implemented as a **texture swap, not a scale**: `createBaseLayout()`
+> copies textures off hidden donor panes `ChangeTex16x9` and `Picture_16` onto the live
+> panes. The same trick appears in the drag overlay, the disc-insert layout and the
+> preview overlay's twelve `Fre_*` panes. Elements are also **re-anchored** — the SD
+> button sits at x = −245 in 16:9 but −152 in 4:3, i.e. 20.6% vs 25.0% from the left edge.
+> **Build against a 608×456 / 832×456 virtual canvas scaled to fit**, and treat 4:3 and
+> 16:9 as separate art, not one CSS transform.
+> See `context/decomp-findings.md` §1 and §14 item 3,
+> `context/components/completeness-sweep.md` §2.13. Evidence tier: decomp + official.
+
 ## 4. System Font
 
 - The font used across GameCube, Wii, Nintendo DSi, Nintendo 3DS, and Wii U system software (including the Wii Menu, its built-in channels, and Virtual Console menus) is **Rodin NTLG** — "Rodin" (a rounded geometric sans typeface) combined with "New Type Labo Gothic" kana for Japanese glyphs, from the Japanese foundry **Fontworks**, originally designed by **Yutaka Satō for Type Labo** and first released in 1997. ([List of Nintendo system fonts — NintendoWiki](https://niwanetwork.org/wiki/List_of_Nintendo_system_fonts); corroborated via search excerpt from same source)
@@ -50,11 +70,35 @@ Research reference for the fan-made React recreation of the Nintendo Wii "Wii Me
 - General broadcast/CRT-era safe-area convention (not Wii-specific, but the design context the Menu was built under): a **"title-safe" area of ~80% of frame width/height**, and an **"action-safe" area of ~90%** of frame width/height, to keep on-screen text and important UI elements clear of the unpredictable edge cropping ("overscan") that consumer CRT displays applied. ([Wikipedia — Overscan](https://en.wikipedia.org/wiki/Overscan); [NAB — Television Safe Areas Redefined](https://www.nab.org/xert/scitech/pdfs/tv031510.pdf))
 - Overscan exists because consumer CRTs deliberately drew the picture larger than the visible tube area to hide edge irregularities and tolerate voltage-driven image-size "blooming," so broadcasters/console makers could not guarantee exactly where a TV's visible edge would fall — hence the safe-area convention. ([Wikipedia — Overscan](https://en.wikipedia.org/wiki/Overscan))
 - No Nintendo-published document giving the Wii Menu's exact safe-area percentage/pixel margins was found. However, the Menu's actual layout is consistent with conservative CRT-safe design: the 4×3 channel grid, page-dot/date-time footer, and side "Wii" sidebar buttons all sit with visible margin inset from the frame edge in period screenshots — behavior typical of a design built to the ~90% action-safe convention rather than edge-to-edge.
+
+> **⚠️ SUPERSEDED (2026-07-24): "page-dot" — there is no page indicator of any kind.**
+> Delete that word from the footer description. The channel-select scene contains no
+> `Page`, no `Num` and no dot group among its panes; the only page state is an integer
+> `mCurrentPage` that is never rendered. Nintendo's manual documents a numeric indicator
+> for the **SD Card Menu** ("Current and total page numbers", shown as "1/20") and for the
+> Address Book, and pointedly not for the Wii Menu; nothing appears in
+> `reference_screen.png` either. The footer holds the clock, the date, and the three
+> bottom-bar controls — nothing else.
+> Also note the bar is **not** inset from the frame: it runs full-bleed to the bottom and
+> both side edges with square corners. Measured margins: grid left margin ≈8.3% of screen
+> width, top ≈7.7% of height — and a **partial 5th column deliberately peeks in at the
+> right edge**, so the grid is *not* symmetrically inset.
+> See `context/components/page-navigation.md` §8, `context/components/channel-tile.md` §8.2,
+> `context/components/bottom-bar-container.md` §1.1. Evidence tier: decomp + official +
+> pixel measurement.
 - **Gap:** treat "how many px/percent of margin the real Menu used" as **unsourced/inferred**, not documented fact — this is a reasonable design-history assumption from general CRT-era practice, not a confirmed Nintendo spec.
 
 ## 7. Synthesis — Translating These Constraints to a Responsive React Rebuild
 
 > The following is original reasoning for this project, not sourced fact. Marked explicitly since the brief requires distinguishing it from the researched material above.
+
+> **⚠️ SUPERSEDED (2026-07-24):** The base-canvas recommendation immediately below is
+> superseded — use **608 × 456 (4:3)** or **832 × 456 (16:9)**, the System Menu's own
+> projection rectangles, not a 640×480-derived scale. See the §3 marker. The rest of this
+> synthesis section (TV-safe framing, 60 fps target, font substitution, no need to emulate
+> YUV) still stands. One addition on the font: at least one pixel-accurate recreation
+> ships Rodin in **two weights** (`FOT-RodinProN-B` *and* `-DB`), so a two-weight pairing
+> is a better target than a single substitute. Evidence tier: decomp.
 
 - **Base design canvas:** Anchor the design to a **4:3-equivalent composition at a 640×480-derived scale** (e.g., design tokens/spacing based on a 640×480 or 960×720 "logical" canvas) for the core grid and chrome, since that is the resolution the real Menu's UI was actually laid out against — even 16:9 output was that same composition stretched, not a redesigned wider layout. This keeps the icon grid's proportions faithful.
 - **Aspect ratio handling:** Rather than literally reflowing the grid to add columns on wide viewports (which the original console never did), consider:

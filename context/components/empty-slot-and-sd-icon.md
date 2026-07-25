@@ -198,6 +198,21 @@ for click purposes. Keep them as drop targets during a drag (§A.4). Flag this a
 **inference**, not a sourced fact; a video capture of a pointer crossing empty slots would
 settle it in seconds and is the cheapest remaining verification.
 
+> **✅ CONFIRMED (2026-07-24) — upgrade this from [Inferred] to [Decomp]; the
+> recommendation is exactly right.** Every channel-tile event in
+> `ChannelSelectEventHandler::onEvent` is gated on `chanObj->isValid()`, which is
+> `hasLoadedBnr(page, index)`. Consequence: pointing at an empty slot produces **no
+> highlight, no balloon, no `WIPL_SE_CH_TARGETTING`, no rumble**, and clicking it does
+> **nothing at all** — not even an error sound. `initBalloon()` early-returns with a null
+> layout when `!isValid()`.
+> And §A.4's open question — does it highlight during a drag? — resolves **yes**:
+> `onEventDrag` calls `searchList(...)->onPoint(2)` on a releasable slot, and the argument
+> bits mean *show the cursor highlight, suppress the name balloon*, plus the targeting
+> tick and rumble. So the "invented affordance" recommended in §A.4 is authentic after all.
+> Occupied tiles are simultaneously **dimmed** by `my_TVMask_a`, while empty slots are
+> deliberately left bright — the mask is guarded by `isValid()`.
+> See `context/decomp-findings.md` §5.2–5.3. Evidence tier: decomp.
+
 ## A.4 Role in drag-and-drop
 
 **Empty slots are the documented drop target.** **[Official]**
@@ -438,6 +453,20 @@ manual's phrasing (*"To **use this menu item**, an SD Card must be inserted"*) r
 "disabled," and its second passage frames grayness as a *diagnostic* for the user ("if the icon
 is gray, there's no card") rather than as an error path. **[Inferred]** — implement grayed as
 inert with no click response; low confidence, low stakes.
+
+> **⚠️ SUPERSEDED (2026-07-24): the greyed icon stays FULLY interactive.** Do not
+> implement it as inert. `SDMenuButton::startPointEvent()` checks only `mbEnabled` and
+> **never the insertion state**, and `CsChanSelSDMenuEventHandler::onEventDerived`
+> launches the SD Card Menu **unconditionally** — so hover highlight,
+> `WIPL_SE_BT_TARGETTING`, rumble, the balloon (message ID 161) and the click all work
+> with an empty slot. The greying is purely a **pane swap**: `N_Btn_On` and `N_Btn_Off`
+> are two mutually-exclusive pane trees toggled instantly with no crossfade, `N_Btn_Off`
+> being the default at creation. Insertion plays a sound *and* an animation; removal plays
+> only a sound and swaps the panes.
+> Two adjacent facts: the icon is **absent entirely in safe/maintenance mode**, and its
+> root pane sits at exactly (−245, −172) in 16:9 and (−152, −172) in 4:3 — the 4:3 value
+> being precisely −W/4.
+> See `context/decomp-findings.md` §8.5. Evidence tier: decomp.
 
 ## B.4 When it appears at all
 

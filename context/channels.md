@@ -1,5 +1,12 @@
 # Wii Menu — Default/Built-in Channels Reference
 
+> **⚠️ THIS DOC CONTAINS SUPERSEDED MATERIAL (annotated 2026-07-24).** Its per-channel
+> *content* research (function, release dates, title IDs, WiiConnect24 behaviour) is
+> WiiBrew-sourced and holds up well. What did not survive: the "drag onto an occupied slot
+> to swap" claim, D-pad paging, "empty slots are static and unlabelled," "single-click
+> enlarges the tile," and the Disc Channel tile description. Each is marked inline with
+> `⚠️ SUPERSEDED`. See `context/README.md`.
+
 Research reference for recreating the Nintendo Wii "Wii Menu" (System Menu) and its
 built-in/first-party channels. Compiled from fan wikis (WiiBrew, Wiikipedia/Fandom,
 StrategyWiki, MiiWiki), Wikipedia, and homebrew technical docs. Where a claim is not
@@ -15,11 +22,31 @@ independently sourced, it is flagged as **fan consensus** rather than confirmed 
   each screen having 12 Channel slots."
 - Users page between the 4 screens using the **+ / − buttons** on the Wii Remote (also
   mappable to the D-pad).
+
+> **⚠️ SUPERSEDED (2026-07-24): the D-pad does not page the Wii Menu.**
+> `BTN_LEFT` / `BTN_RIGHT` / `BTN_UP` / `BTN_DOWN` appear **zero times** in
+> `iplChannelSelect.cpp`. The only paging inputs are `BTN_NEXT_LEFT` = Wii Remote `−` and
+> `BTN_NEXT_RIGHT` = `+`, plus Classic Controller `+`/`−` and — inverted relative to
+> intuition — `L` = right, `R` = left. Only the **master (Player 1)** controller pages.
+> Holding `+` pages once per completed transition, not continuously.
+> See `context/components/page-navigation.md` §7. Evidence tier: decomp.
 - Channels/games can be freely rearranged into any of the 48 slots **except the Disc
   Channel**, which is permanently anchored to the top-left slot of page 1 and cannot be
   moved (without homebrew/hacking). [Wikipedia: Wii Menu](https://en.wikipedia.org/wiki/Wii_Menu)
 - To move a tile: hold **A+B** on the Wii Remote while pointing at a channel, drag it to
   an empty (or occupied, to swap) slot, and release. [How to Arrange Channels — Nintendo Support](https://en-americas-support.nintendo.com/app/answers/detail/a_id/1520/~/how-to-arrange-channels-on-the-wii-menu-or-the-sd-card-menu)
+
+> **⚠️ SUPERSEDED (2026-07-24): "(or occupied, to swap)" is wrong — there is no swap.**
+> `isReleasableArea()` returns true only for a cell that is **empty**
+> (`loadedBnr == false`) or the drag's own origin. Dropping on an occupied cell is
+> rejected: `WIPL_SE_CH_NOT_MOVE` plays, the tile snaps home, and a 20-frame / 333 ms
+> settle runs before the mask fades. No swap, no neighbour shuffle, no reflow. Two
+> further hard rules: **if all 48 slots are occupied, dragging is disabled entirely**
+> (the grab never begins), and the Disc Channel can never be grabbed. This is also *why*
+> Nintendo tells you to drag onto the scroll arrow to reach another page — you are hunting
+> for a free cell, not displacing anything.
+> See `context/decomp-findings.md` §6.3 and `context/components/disc-channel.md` §1.
+> Evidence tier: decomp.
 - A separate, similarly-gridded **SD Card Menu** exists for channels/games copied to an
   SD card; it is reached via a dedicated "SD Card" slot/shortcut integrated into the main
   grid system in later System Menu versions.
@@ -27,6 +54,30 @@ independently sourced, it is flagged as **fan consensus** rather than confirmed 
   Spriters Resource archives them as a distinct "Empty Channel Spaces" sprite sheet
   separate from populated channel banners, confirming they render as a static blank/gray
   tile rather than any animated placeholder. [Empty Channel Spaces — Spriters Resource](https://www.spriters-resource.com/wii/wiimenu/asset/68562/)
+
+> **⚠️ SUPERSEDED (2026-07-24): empty slots are ANIMATED, and they are not unlabelled.**
+> - **Animated:** `ChannelObj::createEmptyThumbnail()` loads `my_IplTop_b.brlyt`, binds
+>   `my_IplTop_b.brlan`, and returns `rand() % 2000` **as the animation's start frame**.
+>   So the loop is ≥2000 frames (≈33 s) and **every empty slot runs at a different random
+>   phase**. The existence of a sprite sheet proves an asset exists, not that it is static
+>   — and that sheet in fact contains **four** frames, not one.
+> - **Not unlabelled:** every empty tile carries a faint centred **"Wii" wordmark**
+>   (~35% of tile width, ~21% of height), confirmed three independent ways — the reference
+>   screenshot under blur+auto-contrast, Nintendo's own manual diagram, and the ripped
+>   texture (where it is solid black; on screen it is modulated to ~4% contrast). The
+>   "no '+' glyph" half of the claim below is **confirmed** — but the explanation offered
+>   (that the remembered "+" is the cursor) is probably wrong; likelier sources are the
+>   Wii Remote's physical `+` button and the `+`/`−` dome buttons used elsewhere in the
+>   system UI.
+> - **Tone:** `#D4D4D4`, with a *recessed* bevel (dark keyline top-left, light
+>   bottom-right, fill brightening downward) — the exact inverse of a populated tile's
+>   raised-glass shading. That opposition is the grid's core depth cue.
+> - **Interaction:** inert at rest — pointing at an empty slot produces no highlight, no
+>   balloon, no sound and no rumble, and clicking does nothing (every tile event is gated
+>   on `chanObj->isValid()`). **But during a drag it becomes a highlighted drop target**,
+>   showing the cursor ring and playing `WIPL_SE_CH_TARGETTING` *without* the name balloon.
+> See `context/decomp-findings.md` §5 and `context/components/empty-slot-and-sd-icon.md`
+> §A. Evidence tier: decomp + pixel measurement + texture rip.
   **Fan consensus / visual memory** (not independently text-sourced here): the blank
   tile is a flat medium-gray rounded-rectangle with a subtle inset bevel and no
   "+"/insert glyph rendered by default — the "+" affordance most people associate with
@@ -41,6 +92,21 @@ independently sourced, it is flagged as **fan consensus** rather than confirmed 
 - Selecting (single-click) a tile enlarges/highlights it and plays its ambient
   animation/sound preview; a second click/press of A launches the channel.
 
+> **⚠️ SUPERSEDED (2026-07-24): the tile does not enlarge — the screen is replaced.**
+> Clicking swaps the grid for a **full-screen banner**, a different asset from the tile
+> icon (`banner.brlyt` ≤512 KB vs the icon's ≤50 KB) at a different aspect ratio
+> (590×332 in 4:3 / 810×332 in 16:9), composited under a black frame with blue arrows at
+> the screen edges and a two-button strip beneath. A `scale()` of the tile lands on the
+> wrong aspect; the honest reconstruction is a cross-fade between two differently
+> proportioned assets during a **28-frame / 467 ms** camera zoom on exact smoothstep.
+> Two refinements: the left button is **contextual** — "Wii Menu" from the grid,
+> "SD Card Menu" from the SD Card Menu — and the edge arrows **step to the adjacent
+> channel's banner without returning to the grid**. The banner screen is held for a
+> **guaranteed minimum of 1000 ms**, and banner sound is mandatory per Nintendo's spec.
+> See `context/components/channel-tile.md` §7, `context/decomp-findings.md` §3–§4,
+> `context/components/transient-states-and-overlays.md` item 4.
+> Evidence tier: official + decomp.
+
 ---
 
 ## 1. Disc Channel
@@ -53,6 +119,17 @@ independently sourced, it is flagged as **fan consensus** rather than confirmed 
   spinning/glinting (plus a GameCube disc graphic on GameCube-compatible hardware). Some
   fan sources describe a grey disc silhouette with a question mark when nothing is
   inserted. [Search summary of WiiBrew/Fandom/Nintendo Support Disc Channel pages]
+
+> **⚠️ SUPERSEDED (2026-07-24):** This conflates the **grid tile** with the **full-screen
+> banner**. The no-disc *tile* is a single plain silver/chrome disc — no branding, no
+> text, no GameCube disc beside it, and no spin (only a slow specular idle loop). The two
+> discs side by side, the cyan "Wii" disc, the title bar and "Please insert a disc." all
+> belong to the *banner* (`my_DiskCh_a.brlyt` in `diskBann.ash`), a separate asset. The
+> "grey disc silhouette with a question mark" appears in no asset name and in no capture —
+> **treat it as wrong.** Note also the top-left position is *conventional, not hardcoded*:
+> `getDiskChannelLocation()` scans all 48 slots and only falls back to (page 0, index 0),
+> which is exactly why Priiloader can relocate it.
+> See `context/components/disc-channel.md` §1–§3. Evidence tier: decomp + pixel measurement.
 - **Tile appearance — disc inserted**: swaps to a **per-game animated preview graphic**
   (the game's own banner/cover art with motion and sound) baked into the disc's own
   banner data; **GameCube discs**, lacking this Wii-specific banner data, fall back to
@@ -344,6 +421,17 @@ Empty slots (all remaining positions across the 4 pages, 48 total) render as **p
 unlabeled placeholder tiles** — confirmed to exist as a distinct visual asset separate
 from populated banners, though the exact color/bevel styling should be checked against
 reference screenshots rather than taken as certain from text sources alone.
+
+> **⚠️ SUPERSEDED (2026-07-24) — two fixes to the table above and this note:**
+> 1. **Empty slots are neither plain nor unlabelled nor static** — `#D4D4D4` with a
+>    recessed bevel, a ghosted centred "Wii" wordmark, and a ≥2000-frame animation loop
+>    started at a random per-slot frame. See the marker in "Grid layout" above.
+> 2. **The Wii Message Board is not a grid slot.** The table lists it at "Page 1,
+>    bottom-right", but it is a **bottom-bar button** (`B_Bbs`) in a different layout
+>    (`my_IplTop_e.brlyt`), outside the 4×3 grid entirely. All 12 slots on page 1 are
+>    available to real channels. Same for the Wii button and the SD Card icon.
+> See `context/decomp-findings.md` §5.1, §8.1 and `context/system-ui.md` §1.
+> Evidence tier: decomp.
 
 ---
 

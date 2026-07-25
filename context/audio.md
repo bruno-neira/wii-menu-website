@@ -1,5 +1,15 @@
 # Wii Menu — Audio Design Reference
 
+> **⚠️ THIS DOC CONTAINS SUPERSEDED MATERIAL (annotated 2026-07-24).** Its central
+> premise — that no complete `WIPL_SE_*` catalogue is obtainable and only two identifiers
+> are confirmed — is no longer true. `include/sound/IplSound.rsid` in the System Menu
+> decompilation is a **complete, auto-generated dump of the BRSAR's sound-ID table: all
+> 90 entries**, with exact trigger points recoverable from the calling code. The full
+> catalogue and a consolidated main-menu sound map live in `context/decomp-findings.md`
+> §11. The *aesthetic* material below (composer, timbre, mood, the startup chime's
+> character) is unaffected and still the best available. Stale claims are marked inline
+> with `⚠️ SUPERSEDED`.
+
 Research notes on the sound design of the Nintendo Wii Menu (System Menu), compiled for building an accurate web recreation. Sourced from fan wikis, soundtrack archives, modding/reverse-engineering communities, and sound-design commentary. **Primary Nintendo documentation of the Wii Menu's audio is essentially nonexistent** — there is no dedicated Iwata Asks interview, developer blog, or official credits sheet for the System Menu's UI sounds specifically (the closest official material, Iwata Asks: Wii Fit Vol. 4 "Sound, Design and Planning," covers Wii Fit's audio team, not the Menu). Almost everything below is fan-documented, reverse-engineered from ripped system files, or inferred from soundtrack archive metadata. Claims that are fan-consensus-only (not corroborated by Nintendo or file-level evidence) are explicitly flagged.
 
 ## 1. Background Ambient Menu Music
@@ -22,6 +32,28 @@ Research notes on the sound design of the Nintendo Wii Menu (System Menu), compi
 - The related Wii Shop Channel (which reuses the same system sound family/engine conventions) documents an explicit **"Hover/Target"** effect as "the sound played when hovering over buttons," corroborating that hover/focus is its own discrete SFX category system-wide, separate from selection. [OSCWii docs: Wii Shop Channel sound](https://docs.oscwii.org/wii-shop-channel/js/sound)
 - Some write-ups also describe a companion **"bloop" that rises in pitch as the menu item visually inflates/enlarges** on focus — i.e., the pitch-rising blip is treated as tightly synced to (and metaphorically reinforcing) the channel's "puff up" hover animation. [beyondthebeep](https://www.tumblr.com/beyondthebeep/41170831979/the-nintendo-wiis-ui-sounds)
 
+> **⚠️ SUPERSEDED (2026-07-24): there is no single "hover sound" — there are two parallel
+> families, and they must not be conflated.**
+>
+> | Event | Sound (Nintendo's own spelling, two T's) | ID |
+> |---|---|---|
+> | Point at a **channel tile** | `WIPL_SE_CH_TARGETTING` | 35 |
+> | Point at a **bottom-bar button / arrow / SD icon** | `WIPL_SE_BT_TARGETTING` | 34 |
+> | **Un**-hover anything | *silence* — there is no un-hover sound at all | — |
+> | Name balloon pops in (267 ms / 333 ms after hover) | `WIPL_SE_BALLOON` | 42 |
+> | Click a channel | `WIPL_SE_BT_PUSH` (46), then `WIPL_SE_CH_SELECT` (32) as the zoom starts |
+> | Back out of a channel preview | `WIPL_SE_CH_UNSELECT` | 33 |
+> | Click a **bar button** (Message Board / Wii / SD) | `WIPL_SE_DECIDE` — **not** `BT_PUSH` | 36 |
+> | Page turn (arrow, +/−, or drag-hold) | `WSD_SELECT`, fired on trigger *before* any motion | 22 |
+> | Press a **disabled** control | `WIPL_SE_GRAY_BUTTON` | 57 |
+>
+> Hover also fires a **rumble pulse of 7/120 s ≈ 58.3 ms** — undocumented anywhere else in
+> this corpus. There is a **third** cue this doc did not predict: un-select is its own
+> sound, distinct from both hover and select.
+> The "pitch-rising bloop synced to the tile puffing up" is doubly wrong: the tile does
+> not inflate on hover (the icon layout is never touched), and the blip is a fixed sample.
+> See `context/decomp-findings.md` §2.3 and §11. Evidence tier: decomp.
+
 ## 4. Channel Launch Sound
 
 - Clicking/selecting a channel to launch it triggers a distinct, sharper sound than the hover blip — described as a "quick zap effect with sharp texture and rapid attack," i.e., a crisper, more percussive confirmation tone than the soft hover click. [beyondthebeep](https://www.tumblr.com/beyondthebeep/41170831979/the-nintendo-wiis-ui-sounds)
@@ -38,6 +70,28 @@ Research notes on the sound design of the Nintendo Wii Menu (System Menu), compi
 ## 6. Message Board / Mail Notification Sound
 
 - New mail on the Message Board is indicated by a **pulsing blue glow** around the Message Board channel/notification icon plus, per general fan description, **"a pinging sound"** when a new message arrives. The precise timbre/pitch of this ping was not documented in any technical source found — flagged as **fan-consensus description only** ("pinging sound"), not a sourced acoustic breakdown.
+
+> **⚠️ SUPERSEDED (2026-07-24) — the sound is confirmed and named; the "pulsing blue glow"
+> is probably a conflation:**
+> - **The ping is `WIPL_SE_NEW_ARRIVAL` (ID 66)**, fired from `Button::startNewMailAnm_()`
+>   — the decompiler's own comment on the line reads `// Play nice jingle`. It **repeats
+>   every 3000 ms** for as long as the state persists.
+> - The notification is actually **two distinct animations**, not one blink:
+>   `G_BbsSignal` (frames 1→400 = **6667 ms**, looping, **silent**, shown whenever the
+>   mail count is non-zero) and `G_BbsSignal_new` (frames 1→160 = **2667 ms**, one-shot,
+>   **plays the jingle**, re-fired on a 3000 ms timer). So the rhythm is a ~2.67 s flourish
+>   with a ~0.33 s gap. Nintendo's manual word "blink" is misleading — trust the frames.
+>   There is also a **numeric unread badge** (pane `T_BbsMark1`), clamped to 99, with no
+>   "99+" affordance.
+> - **No blue-glow asset exists** in the Wii Menu texture set, and the notification path
+>   drives layout animation groups plus a text pane — no glow or bloom material is
+>   involved. This reads as a conflation with the console's **physical disc-slot LED**,
+>   which really does pulse blue for WiiConnect24 data and is user-configurable to
+>   Bright / Dim / Off. Recommend removing the claim or re-scoping it to the hardware LED.
+>   *(Honest caveat: this is partly an argument from absence — a recommended correction,
+>   not a proven refutation.)*
+> See `context/components/mail-button.md` §4.1–4.4 and `context/visual-design.md` §6.
+> Evidence tier: decomp (sound + animation), inference (the glow).
 - Individual mail messages can carry **custom sender-attached sounds** as part of their "stationery" (a custom envelope/letterhead/sound bundle chosen by the sender), meaning the *system's* default open-message sound can be overridden per-message — this is a Nintendo-documented feature of Message Board stationery, not just a notification detail. Worth noting for a clone: the "opening a letter" sound is not fixed, unlike the core Menu SFX.
 
 ## 7. Startup Chime (Boot Sound)
@@ -56,6 +110,37 @@ Research notes on the sound design of the Nintendo Wii Menu (System Menu), compi
   - `WIPL_SE_WII_START` — the startup chime (§7).
   - `WIPL_SE_CHAR_DELETE_ERROR` — an error tone, also reused by the on-screen keyboard's character-delete-error case.
   - Extraction tooling is reported as immature/unreliable for this archive: contributors note VGMToolbox/VGMTrans/BrawlBox/generic BRSAR extractors all fail or only partially work on `IplSound.brsar` (stereo audio handling in particular is broken in most public tools), so **no complete, verified list of every `WIPL_SE_*` identifier was found** — only the two above plus the general existence of a Menu-wide sound set covering hover/select/cancel/error categories (§3–4).
+
+> **⚠️ SUPERSEDED (2026-07-24): the complete list exists and has been recovered — all 90
+> IDs.** You do not need to extract the BRSAR to get the *names*: the decompilation ships
+> `include/sound/IplSound.rsid`, an auto-generated dump of the archive's sound-ID table.
+> (You still cannot get the *samples* that way — the audio itself remains in NAND.)
+> Everything in the code passes these as **string literals**, so the identifiers are
+> quotable verbatim. Highlights beyond §3–4's marker:
+> - `WIPL_SE_WII_START` (26) fires **exactly once per power-on**, gated by a static flag,
+>   alongside the looping `WIPL_BGM_MENU` (58). Returning from a channel replays only the
+>   BGM — confirming this doc's "two distinct assets stitched at runtime" reading.
+> - Drag family: `WIPL_SE_CH_HOLD` (62), `CH_DRAG` (63), `CH_SET` (64), `CH_NOT_MOVE` (65)
+>   — and **they are stereo-panned by the pointer's X position**, with the held drag loop
+>   additionally **modulated by per-frame movement magnitude**
+>   (`holdSEwithPosDis("WIPL_SE_CH_DRAG", pos.x, speed)`). Reproducible with a
+>   `StereoPannerNode`. Board messages are hard-panned to ±300 as they fly to the envelope.
+> - `WIPL_SE_SDCARD_IN` / `_OUT` (68/69) announce card insertion/removal on the menu.
+> - `WIPL_ME_*` are jingles ("music entry"): `NO_DISC_BANNER` (27), `GC_BANNER` (29),
+>   `INVALID_DISC_BANNER` (30). **The "no disc" cue is a jingle, not a beep** — it occupies
+>   the slot a real game's banner music would and is killed with a 28-frame fade.
+> - There is **no `WIPL_SE_DISC_*`** anywhere: an audible disc-insert cue would be an
+>   addition, not a restoration.
+> - **Cursor movement is confirmed silent** — no `WIPL_SE_POINTER_*` / `CURSOR_MOVE` in
+>   the table, and no `startSE` call anywhere in `Pointer`/`PointerCore`. Upgrade §2 from
+>   "treat as silent unless better evidence surfaces" to **confirmed**.
+> - Sixteen separate **players** (voice channels) are enumerated — `PLAYER_FOCUS`,
+>   `PLAYER_BGM`, `PLAYER_WII_START`, `PLAYER_SDCARD`, … — so the focus tick, the decide
+>   sound and the BGM never cut each other off. Mirror with independent audio nodes.
+>
+> The estimate of "~8–15 stingers" was low, and the Wii Shop Channel proxy is no longer
+> needed. See `context/decomp-findings.md` §11 for the full table and the consolidated
+> main-menu sound map. Evidence tier: decomp.
 - A close analog with a fully-documented SFX list is the **Wii Shop Channel**, which shares the Menu's general system-sound conventions/engine lineage and has been reverse-engineered into an open-source JS reimplementation with a clean, named list of **15 sound effects**: Push (near-silent), Hover/Target, Decide/Select, Cancel, Choice Change (radio-button-style option switch), Error, Add Point, Copy Finished, plus several reused classic-Mario stingers (Small/Large Jump, Fire Ball, Coin, Hit Block), a "Copying" loop, and a "Loading" spinner sound — this is the **best available proxy** for how many distinct, purpose-built UI SFX categories exist in this generation of Wii system software, even though it documents the Shop Channel rather than the core Menu itself. [OSCWii docs: Wii Shop Channel sound](https://docs.oscwii.org/wii-shop-channel/js/sound)
 - Practical implication for reconstruction: expect the real Wii Menu to have on the order of **~8–15 short, purpose-specific UI stingers** (hover, select, cancel/back, error, a couple of transition wooshes, plus the one-shot startup chime) layered over one continuously-sequenced ambient bed — not a single monolithic "menu sound." Exact counts/names beyond what's listed above remain **unconfirmed** without direct access to a working `IplSound.brsar` extraction.
 
@@ -72,3 +157,13 @@ Research notes on the sound design of the Nintendo Wii Menu (System Menu), compi
 | Wii Remote sync chime description | Low — sound exists and is widely clipped online, but no technical/acoustic writeup found |
 | Low-battery sound | None found — appears to be visual-only |
 | Complete `WIPL_SE_*` catalog | Low — only 2 identifiers confirmed; archive is not cleanly extractable with current public tools |
+
+> **⚠️ SUPERSEDED (2026-07-24) — three rows of this table have moved:**
+> | Row | New confidence |
+> |---|---|
+> | Complete `WIPL_SE_*` catalog | **High** — all 90 IDs recovered verbatim from `IplSound.rsid`; see the §8 marker. |
+> | Hover vs. select being two distinct SFX | **Confirmed**, and it is finer-grained than stated: hover splits into `CH_`/`BT_` families, and un-select is a third cue. |
+> | Message Board "ping" | **High for the sound** (`WIPL_SE_NEW_ARRIVAL`, 3000 ms repeat); the accompanying "pulsing blue glow" is **likely wrong** — see the §6 marker. |
+>
+> Unchanged and still Low/None: loop length of the ambient bed, the Wii Remote sync
+> chime's acoustics, and the low-battery silence. Evidence tier: decomp.

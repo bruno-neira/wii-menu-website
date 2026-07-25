@@ -282,6 +282,18 @@ The arrows animate *away* whenever you leave the grid, rather than just being co
 Board) both explicitly fire `IDANIM_ARROW_LEFT_DISAPPEAR` / `IDANIM_ARROW_RIGHT_DISAPPEAR`
 before the scene change. Worth mirroring if you build the channel-preview overlay. [Decomp]
 
+> **ℹ️ ADDENDUM (2026-07-24): the arrows are repurposed, not retired.** The disappear
+> animation is correct, but `ChannelTitle` **re-shows them in some paths**
+> (`iplChannelTitle.cpp:1002–1003`) and they stay event-bound inside the channel-preview
+> overlay — where they no longer page the grid but **step to the previous/next installed
+> channel** without returning to the menu (`searchChannel()` → `startChangeChannel()`,
+> sound `WSD_SELECT`, banner swapped via `ChangeIn` → `ChangeRoop` → `ChangeOut` and the
+> button label crossfaded via `ChangeTextIn`/`ChangeTextOut`). Nintendo's own spec
+> corroborates: *"Arrows are displayed on the screen edges, so make sure that important
+> information is not obscured by them."*
+> See `context/decomp-findings.md` §4.4 and `wii_design_specs.pdf` §3.4.1.
+> Evidence tier: decomp + official.
+
 ---
 
 ## 5. Appear / disappear animation
@@ -360,6 +372,19 @@ containers back and repopulating them. A cut or crossfade would need none of thi
 clock/date readout is parented *inside* each page and therefore **slides horizontally along
 with the grid** during a page turn. Worth verifying against video before implementing.
 [Decomp + Inferred]
+
+> **✅ CONFIRMED (2026-07-24) — upgrade from [Inferred] to [Decomp].** `clock::draw()`
+> reads the anchor pane's **global** matrix and writes its translation onto the clock
+> layout's root (`N_WiiMenu`) before drawing, and `ChannelSelect::draw()` calls
+> `mClock.draw(pane)` once for each of `N_Clock0/1/2`. So it is **one clock object
+> repositioned and drawn three times per frame**, not three clocks — all three show the
+> same time and blink in unison — and because the anchors are children of the page
+> containers, it genuinely translates with the grid. `ChMask`, drawn last, clips the
+> off-screen copies. Draw order also settles z-index: page containers → thumbnails →
+> layout → disc layer → **clock ×3** → cursors → balloons → `ChMask` → dragged tile. So
+> the clock renders **above the grid chrome but below the hover cursor and balloons**.
+> This kills `clock.md` §1's "stays fixed on-screen as you page" claim outright.
+> See `context/decomp-findings.md` §9.7. Evidence tier: decomp.
 
 ### Full trigger → settle sequence
 

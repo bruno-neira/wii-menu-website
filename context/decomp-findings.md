@@ -1042,6 +1042,33 @@ than stopping it — a neat trick worth mirroring (hold at frame 0, don't unmoun
 
 ### 9.1 THE ANSWER: there is no date on the Wii Menu. Only time.
 
+> **⚠️ SUPERSEDED (2026-07-24): this heading overshoots, and its "ship time only" action
+> is wrong.** Everything this section proves about the **clock layout** is correct and
+> re-verified: `my_Clock_a.brlyt` has no date pane, and `time_tex` carries only hours,
+> minutes and `isPM`. But that proves the *clock* has no date — **not that the screen has
+> none.** It does:
+> - `reference_screen.png` shows `Fri 1/1` under `12:00 AM`; `wii_design_specs.pdf`
+>   Figure 1-2 shows `Tue 8/7` under `3:00 PM`; the EU manual figure shows `Wed 01/04`
+>   under `15:00`. Nintendo's manual carries a **`Current Date` callout** distinct from
+>   `Current Time`, in three separate editions.
+> - **The mechanism is in this very document.** §7.1 establishes that the **Message Board
+>   is the parent scene** and draws `my_IplTop_c.brlyt` on `DRAW_LAYER_2` beneath the
+>   channel grid **every frame**. That layout holds the text boxes `T_Day_a` / `T_Day_b` /
+>   `T_Day_c`, filled by `Board::set_text_date()` (`iplBoard.cpp:1319–1321, :1721, :1732`),
+>   and §9.8's `get_text_usaeng()` is the formatter — `Weekday M/D`, no zero padding.
+>   Independently corroborated: `diddy81/Wii-Theme-Brlyt-Editor` ships a `date()` function
+>   that patches `my_IplTop_c.brlyt` at three offsets.
+>
+> So §9.1's inference that the manual's `Current Date` callout "must point at the Message
+> Board area" was half right — it points at something the **Board renders**, but that
+> something is **visible on the main menu screen**, directly under the clock.
+>
+> **Corrected action: ship the date.** Build it as a component separate from the clock,
+> sharing only a time source. `context/clock.md` §3 is right about the component and wrong
+> about the screen; `context/components/date-display.md` is the definitive treatment;
+> `context/tech-prior-art.md` §8 raised the contradiction independently.
+> Evidence tier: official ×3 + pixel measurement + decomp (`iplBoard.cpp`).
+
 **[Decomp — direct code evidence, from a `Matching` (byte-exact) file.]**
 `src/scene/channelSelect/iplClock.cpp` + `include/scene/channelSelect/iplClock.h`.
 
@@ -1756,6 +1783,12 @@ Useful for naming components and for anyone who later dumps a real NAND.
 
 | Doc | Claim | Decomp says |
 |---|---|---|
+> **⚠️ SUPERSEDED (2026-07-24): one row of the table below is itself wrong.** The row
+> reading *"The corpus's reading of the Operations Manual diagram ('Current Date' is on
+> the main menu) — **Wrong**"* is **not** correct: the date **is** on the main menu, drawn
+> by the Message Board layer (`my_IplTop_c.brlyt`, panes `T_Day_a/b/c`) rather than by the
+> clock. See the marker at §9.1. Every other row in this table stands.
+
 | `context/clock.md` §6 | "the clock is rendered from a bundled `.ttf` … genuine vector text, not a sprite/bitmap font" | **Wrong.** Digits are texture swaps from ten hidden `Num0`–`Num9` panes (`iplClock.cpp:176–212`, a byte-exact file). Only `T_WiiMenu` is real text. §9.6 |
 | `context/clock.md` §2 + Open Gap #2 | recommends **no AM/PM** as the safer default | **Wrong for USA.** The USA build explicitly shows AM/PM, on the **right** of the digits (`iplClock.cpp:58–60`). JPN/KOR show it on the **left**. EUR/CHN show none and use 24-hour. §9.3 |
 | `context/channels.md` / `animations-interactions.md` (wherever rearranging is described) | any implication that channels **swap** or that neighbours **shuffle** | **Wrong.** `isReleasableArea()` permits only an **empty** cell or the origin. Occupied cells reject the drop with `WIPL_SE_CH_NOT_MOVE`. §6.3 |

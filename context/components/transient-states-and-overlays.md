@@ -98,6 +98,20 @@ banner load pass.
   earlier. In addition, it cannot be used by disc applications even with Wii Menu versions 3.0
   and later."*
 
+> **⚠️ DISPUTED (2026-07-24) — "the Disc Channel can never show it" conflicts with the
+> decomp.** `context/components/disc-channel.md` §12 finds that
+> `ChannelObj::setupNew()` **does** handle the Disc Channel: it queries `getDiskInfo()`
+> for the inserted disc's ID and asks `Nwc24Manager::isNewMessageThere(diskID)` — so a
+> disc-based *game* with a pending WiiConnect24 message can get "newly arrived" treatment
+> on the Disc Channel tile.
+> **Both sides are probably right about different things:** Nintendo's spec forbids
+> *developer-authored* `New`-group artwork inside a **disc application's** icon, whereas
+> the System Menu's own notification path is a separate mechanism it applies itself. That
+> reconciliation is plausible but **not verified** — the two docs state it as a flat
+> contradiction, so treat it as open. Both sources are high-tier (official spec vs decomp),
+> which is why this is marked disputed rather than resolved.
+> Evidence tier: official (spec) vs decomp — genuinely equal authority.
+
 **The critical implementation consequence:** this is **not** a system-drawn badge. There is no
 canonical shape, colour, corner position, or size, because **the artwork lives inside each
 channel's own `icon.brlyt` / `icon.brlan`**, authored by that channel's developer. The System
@@ -204,6 +218,19 @@ The *mechanic* is thoroughly official; the *visuals* are undocumented anywhere I
   swapping with an occupied slot. **[Inferred]** the drop target may be empty-slots-only, with
   no reflow/push-aside behaviour. This is worth testing in Dolphin before committing to a
   swap-based model.
+
+> **✅ CONFIRMED (2026-07-24) — upgrade from [Inferred] to [Decomp]; no Dolphin test
+> needed.** `isReleasableArea()` permits **only** an empty cell (`loadedBnr == false`) or
+> the drag's own origin. Occupied cells reject the drop with `WIPL_SE_CH_NOT_MOVE` and a
+> 20-frame / 333 ms settle. Dragging is disabled outright when all 48 slots are full.
+> The "what no source describes" paragraph below is also partly answered: **four** layouts
+> are involved — `my_TVShade_a` (the floating dragged tile), `my_TVMask_a` (**dims every
+> other occupied tile**; empty slots are left bright), `my_TVApear_a` (the landing burst),
+> and the empty-slot layout **drawn over the origin cell**. Valid drop targets **do**
+> highlight (cursor ring + targeting tick, no balloon). The cursor swaps to a separately
+> authored grab hand. What remains unknown is only what each layout *looks like*.
+> See `context/decomp-findings.md` §6.3–6.4 and `context/components/disc-channel.md` §1.
+> Evidence tier: decomp.
 
 **What no source describes:** whether the dragged tile scales, tilts, gains a shadow, becomes
 translucent, or is replaced by a ghost; whether the origin slot shows a placeholder; whether

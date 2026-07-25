@@ -465,6 +465,21 @@ them wrong.
 
 ### 6.4 The trough region is a button
 
+> **⚠️ SUPERSEDED (2026-07-24): it is not.** `B_Cal` / `G_Cal` and `B_CalExit` /
+> `G_CalExit` are real panes, but they belong to the **Message Board and Calendar
+> screens**, which share the `my_IplTop_e.brlyt` layout file with the main menu. On the
+> channel-select screen the bottom bar exposes only three things: `B_Bbs` (Message Board),
+> `B_Set` (the Wii button) and the separate SD Card icon — `iplChannelSelect.cpp`'s press
+> handler has cases for exactly those. The `clock` class has no `gui::PaneManager`, no
+> hit-testing and no event handler at all, and Nintendo's manual gives `Current Time` and
+> `Current Date` bare callouts with **no described action**, while every genuinely
+> interactive element on the same diagram gets one. **The clock/date are decorative.**
+> The section's practical advice still holds for the opposite reason: keep
+> `pointer-events: none` on the trough because nothing there is clickable.
+> See `context/decomp-findings.md` §8.1 and §8.4, `context/components/date-display.md` §7.
+> Evidence tier: decomp + official.
+
+
 `iplButton.cpp` scripts `B_Cal` / `G_Cal` and `B_CalExit` / `G_CalExit`, and
 `src/scene/calendar/iplCalendar.cpp` loads `my_IplTop_g.brlyt` with a `G_All` group animation.
 **[Fan/community — decomp]** The clock/date area is a **calendar button**: selecting it opens the

@@ -108,6 +108,17 @@ Same section: titles are max **20 characters per line, two lines max (40 chars)*
 
 - `class TextBalloon` with `fadein()`/`fadeout()`/`fadeoutForce()`, `MAX_STRING_LENGTH = 32`, and
   **`WAIT_UNTIL_FADE_IN = 15`** — a 15-frame (≈250 ms at 60 Hz) hover dwell before it appears.
+
+> **⚠️ SUPERSEDED (2026-07-24): there are two different dwells, and neither is 250 ms.**
+> - `WAIT_UNTIL_FADE_IN = 15` gates a **`>` comparison on a post-incremented counter
+>   starting at 0** (`if (mWaitUntilFadeIn++ > WAIT_UNTIL_FADE_IN)`), so it fires on frame
+>   **16 ≈ 267 ms** — and this constant governs the **bottom-bar button** balloons only.
+> - **Channel tiles use a different code path with a different number:** `iplChannelObj.cpp`
+>   counts to **20 frames = 333 ms** before showing the balloon.
+> Button balloons are also offset **+50 virtual px in Y** and edge-clamped to 120 px
+> (16:9) / 30 px (4:3); exactly five bottom-bar items get one (Message Board, Wii Menu,
+> Settings, Calendar, Create) **plus** the SD icon, which owns its own. **The arrows get
+> none.** See `context/decomp-findings.md` §2.4–2.5. Evidence tier: decomp.
 - Every `ChannelObj` owns one: `initBalloon()`, `mpBalloonHeap`, `drawBalloon()`, built from
   `my_IplTopBalloon_a.brlyt` + `my_IplTopBalloon_a_BalloonInOut.brlan`, text pane `T_Balloon`.
 - Two stacked body panes — `W_Base` and **`W_Shade` (a drop shadow)** — resized together at runtime:
@@ -388,6 +399,21 @@ stingers using the Wii Shop Channel as a proxy. The actual list, from the Menu's
 `WIPL_ME_NO_DISC_BANNER`, `WIPL_ME_GC_BANNER`, `WIPL_ME_INVALID_DISC_BANNER`
 
 **23 IDs.** The estimate of 8–15 was low. Several imply UI facts on their own:
+
+> **⚠️ SUPERSEDED (2026-07-24): the real number is 90, and the list is complete.**
+> `include/sound/IplSound.rsid` is an auto-generated dump of the BRSAR's entire sound-ID
+> table — all 90 entries, with bank and player enumerations. The 23 above are the subset
+> this pass happened to grep out of call sites. Use the full table in
+> `context/decomp-findings.md` §11, which also maps every main-menu trigger point.
+> **One inference in the bullets below is also wrong:** `WIPL_SE_DATE_FOCUS` /
+> `WIPL_SE_DATE_SELECT` do **not** make the on-menu date clickable. Those fire on the
+> **Calendar** screen; the clock/date have no hit-testing, no event handler and no
+> `gui::PaneManager` anywhere in `iplClock.cpp`, and the manual gives `Current Time` and
+> `Current Date` bare callouts with no described action while every interactive element
+> gets one. The `B_Cal` pane in the same shared layout belongs to the Message Board /
+> Calendar screens, not the main menu. Treat the clock/date as decorative.
+> See `context/decomp-findings.md` §8.1, §11 and `context/components/date-display.md` §7.
+> Evidence tier: decomp + official.
 
 - **`WIPL_SE_GRAY_BUTTON`** — a distinct "you clicked a disabled thing" sound (e.g. the grayed SD
   icon with no card in).
@@ -695,6 +721,29 @@ prompt on launch.
 | **Wii button** | Has a hover balloon (`BALLOON_SETTING` / `BALLOON_CH_SEL`); button panes `B_Ch` / `B_Set`; sounds `WIPL_SE_BT_TARGETTING` (hover) and `WIPL_SE_BT_PUSH` (press). |
 | **Date display** | **Settled from files already in this repo.** `wii_design_specs.pdf` Figure 1-2 (p.6) shows time **and** date together ("3:00 PM" over "Tue 8/7"); `reference_screen.png` agrees ("12:00 AM" / "Fri 1/1"). **The date is also interactive** — `WIPL_SE_DATE_FOCUS` and `WIPL_SE_DATE_SELECT` exist, and `my_IplTop_f`/`_g` are calendar layouts with a `G_CalExit` bottom-bar animation. Note `my_IplTop_c` is described as "grey background + date", i.e. the date may live on a different layer than the clock. |
 | **Clock** (`clock.md`) | `ANIM_CLOCK_COLON_BLINK` — **the colon blinks**, on pane `ClockTen`, played `if (!(time.sec % 2))`. Each digit has its own `_APPEAR` and `_LOST` animation (`Clock0`–`Clock3`, `AM_PM`, `AM_PM_R`) — **digits animate individually as they change**, not as a block. Digits are texture swaps from hidden panes `Num0`–`Num9`. **Leading-zero suppression:** `FindPaneByName("Clock3")->SetVisible(mCurrentTex.hourDigit2 != 0)`. Region logic resolves the 12h/24h ambiguity outright (§3). The stock clock renders a dim **"88:88" ghost-segment layer** behind the live digits — a pixel-accurate theme author calls this out as the hardest thing to match, along with the glyph shapes of `0`, `4` and `7`, and notes the stock clock font is "much thinner" than most recreations make it. |
+
+> **⚠️ SUPERSEDED (2026-07-24) — two corrections to the Clock row above:**
+> 1. **"Digits animate individually as they change" is WRONG.** The
+>    `my_Clock_a_NumApear` / `NumLost` animations are *bound* but **never played**:
+>    `clock::appear()` is called only from `stt_disappear()`, which runs only in
+>    `STATE_DISAPPEAR`, and **`STATE_DISAPPEAR` is never assigned anywhere in the
+>    codebase** (repo-wide grep finds only its enum declaration and its switch case).
+>    Meanwhile `stt_normal()` calls `change_tex()` **directly** on a time change. Since
+>    `iplClock.cpp` is a **`Matching`** (byte-exact) translation unit, this is not a
+>    decompilation artefact — the shipped console renders digit changes **instantly**.
+>    These are Nintendo's own intended-but-unshipped transitions; using them is an
+>    "authentic but unshipped" embellishment, not a recreation.
+> 2. The **"88:88" ghost-segment layer** is **disputed**. Direct pixel measurement of
+>    `reference_screen.png` finds flat `#9B9B9B` ink and **no drop shadow**, and the same
+>    GBAtemp thread is the origin of the drop-shadow claim that already caused a bad
+>    implementation in this project. Ghost segments and a drop shadow are *different*
+>    claims, and the ghost layer has been neither confirmed nor refuted by measurement —
+>    but note the source is a **USBLoaderGX theming** thread, not the System Menu. Do not
+>    implement it as settled.
+> Everything else in this row (colon blink, texture swaps, leading-zero suppression,
+> region logic) is confirmed.
+> See `context/decomp-findings.md` §9.6 and `context/components/date-display.md` §5d.
+> Evidence tier: decomp (byte-exact) + pixel measurement.
 | **Channel tile frame** | Frame is `my_IplTop_b.brlyt`, panes `Ch0` / `Ch1`. Focus highlight is a **separate layout per tile**, `my_IplTop_d.brlyt`, pane **`Cursur_a`** (misspelled in the shipping binary), with exactly three animations — `FocusOff`, `FocusOn`, `Select` — so hover and click are distinct states, resolving `visual-design.md`'s "hover/select treatment unconfirmed" flag structurally. Each tile sits on a **two-layer glow** (`behind_channel_outer` + `behind_channel_inner`). Icon panes are **GX-scissored** (2.15). Icon canvas half-extents in code are `{64.0, 48.0}` (4:3) and `{85.0, 48.0}` (16:9) = 128×96 / 170×96, matching the spec PDF exactly. |
 | **Bottom bar container** | The cyan divider is a **shallow valley curve**, high at both ends and dipping across the centre; in `reference_screen.png` the **time sits above the curve and the date below it**. The bar, the tiles and the background all carry a fine **horizontal scanline/striping texture** (cf. `bg-pattern.png` in Wii.JS — a tiled texture, not a flat colour). The grid has **five recolorable divider lines**. The bar hosts one more button than anyone documents: `my_BtnStop_a.brlyt` / `B_Stop`. |
 | **Transient states / overlays** | The preview screen's black frame, edge arrows, adjacent-banner browsing, 1-second minimum, banner-audio start/fade/cut rules, and the parental "locked" dialog `my_ChTopMes_a.brlyt` (2.18). The generic one-button system dialog `System::getDialog()->callBtn0(msg, 180)` / `dlgWdw.ash` used for the Safe Mode notice (2.16). The **HOME Menu one-button variant** (2.11) if it is considered in scope. |

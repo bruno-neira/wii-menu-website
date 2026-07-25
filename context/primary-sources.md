@@ -67,6 +67,34 @@ Findings mined from it are collected in `context/decomp-findings.md` and `contex
 
 ---
 
+## Tier 2.5 — Extracted assets (ripped textures and layouts)
+
+Sits between official documents and fan wikis: these are **Nintendo's own art**, but
+recovered and re-hosted by third parties, so provenance and any post-processing (upscales,
+format conversion, lost alpha channels) must be checked before trusting a value.
+
+- **`Alan-bur/WM4K`** — "Official Wii Menu 4K Texture Pack," dumped from a console via
+  Dolphin. Files are named by Dolphin's texture hash, e.g.
+  `0000000100000002/USA/Wii Menu/tex1_64x128_dc71b0c57d1424ff_2.png`. Git-LFS: fetch from
+  `https://media.githubusercontent.com/media/Alan-bur/WM4K/main/...`. This settled the
+  bottom-bar half-pills (a 54%-alpha rim around a 7%-alpha interior — an outline, not a
+  plate), the envelope glyph (one flat silhouette, not two colours), the "Wii" wordmark
+  (a logotype asset, rendered with a ™), and the SD icon's two lit/greyed variants.
+  **Caution:** most of these are white-plus-alpha masks that the layout tints at draw
+  time, so the file's RGB is not the on-screen colour.
+- **The Spriters Resource** — `https://www.spriters-resource.com/wii/wiimenu/`. The 403s
+  noted below are **user-agent gating, not a block**: a normal desktop `User-Agent` (plus
+  a `Referer` on the media host) returns both page and sheet. Known-useful sheets: *Empty
+  Channel Spaces* (68562), *Channel Border* (211441), *Buttons & Miscellaneous* (68370),
+  plus `Pointer`, `Clock Numbers`, `Wii Message Board Images`, `Corrupted Icon & Banner
+  Data`, `Waiting Icon`, `Wii Options Background`.
+- **`giantpune/wii-system-menu-player`** — renders real System Menu `.arc` assets and
+  carries human-written comments on what each pane does.
+- **`diddy81/Wii-Theme-Brlyt-Editor`** — labels byte offsets *inside* each `.brlyt`, which
+  is how you find panes that have no name in the decompiled C++.
+
+---
+
 ## Tier 3 — Technical fan documentation
 
 - **WiiBrew** — https://wiibrew.org — the homebrew community's technical wiki. Best fan source for System Menu version history, hardware/video output, and file formats. Generally reliable and fetchable.

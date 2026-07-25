@@ -1,5 +1,13 @@
 # Wii Menu — Visual Design Reference
 
+> **⚠️ THIS DOC CONTAINS SUPERSEDED MATERIAL (annotated 2026-07-24).** Later passes
+> re-measured `reference_screen.png` at native resolution, extracted Nintendo's own icon
+> masks from `wii_design_specs.pdf`, retrieved ripped textures, and mined the System Menu
+> decompilation. Several §1–§5 findings did not survive: the "grid recess," the empty-slot
+> fill colour and its "diagonal grain," the bottom-bar gradient direction, and the
+> description of the bar's curve (which is inverted). Each is marked inline with
+> `⚠️ SUPERSEDED`. See `context/README.md` for the corpus index and source precedence.
+
 Research reference for the fan-made React recreation of the Nintendo Wii "Wii Menu" (System
 Menu) — this doc focuses specifically on **visual design**: layout, tile appearance, color,
 typography, chrome, and pixel dimensions. It complements (and avoids re-deriving) the existing
@@ -65,6 +73,20 @@ no SD card affordance on the main Menu screen. That means:
   Channel, Mii Channel, Photo Channel, Wii Shop Channel; row 2 = Forecast Channel, News
   Channel, then two empty slots; row 3 = four empty slots. This matches the "6 primary
   channels" default set documented in `context/channels.md`.
+> **⚠️ SUPERSEDED (2026-07-24) — three corrections to the next two bullets:**
+> 1. **The D-pad does not page the Wii Menu.** `BTN_LEFT/RIGHT/UP/DOWN` appear **zero
+>    times** in `iplChannelSelect.cpp`; the only paging inputs are `BTN_NEXT_LEFT` /
+>    `BTN_NEXT_RIGHT` = Wii Remote `−` / `+` (plus Classic Controller `+`/`−` and,
+>    inverted, `L` = right / `R` = left). Only the **master (Player 1)** controller pages.
+> 2. **The grid's right tile edge is at x ≈ 385, not x = 401** — 401 is the mail
+>    button's ring. The measured grid box is columns x = 35–119, 123–207, 212–296,
+>    300–384 and rows y = 20–65, 69–115, 119–165.
+> 3. The mirrored left arrow on pages 2–4 is **confirmed** (`mbLeftArrowVisible`,
+>    symmetric `ArwL`/`ArwR` animation ranges), and an arrow that is unavailable is
+>    **removed entirely, never greyed**.
+> See `context/components/page-navigation.md` §7, §12, §4.1 and
+> `context/components/channel-tile.md` §8.2. Evidence tier: decomp + pixel measurement.
+
 - **Paging**: pages are flipped with the **+ / − buttons** on the Wii Remote (or D-pad)
   (`context/channels.md`, Wikipedia). Visually, the reference screenshot shows a small solid
   **cyan right-pointing triangle/chevron** floating at the right edge of the grid, vertically
@@ -82,6 +104,16 @@ no SD card affordance on the main Menu screen. That means:
   grid (~`#E4E4E4`–`#EFEFEF`, sampled) — i.e. the whole grid sits on a subtly recessed panel,
   not directly on the page background. This is a screenshot observation, not sourced from text.
 
+> **⚠️ SUPERSEDED (2026-07-24): the grid recess does not exist.** Re-sampling the same
+> image at native resolution gives gutters of **231–240** against a page background of
+> **227–229** — the gutters are *equal to or lighter than* the field, not darker. The
+> `#BEBEBE` value is the **1 px keyline drawn around each tile** (measured 189–194 on
+> the Disc tile top/bottom and the News tile left edge); the original sample almost
+> certainly landed on that stroke. There is no darker backplate behind the grid; if
+> anything each tile carries a faint light halo 2–3 px beyond its keyline.
+> See `context/components/channel-tile.md` §2 / §2.1 and
+> `context/components/empty-slot-and-sd-icon.md` §A.1.1. Evidence tier: pixel measurement.
+
 ## 2. Channel tile appearance
 
 - **Shape**: a **rounded rectangle** with a moderate corner radius, a thin gray keyline/border
@@ -94,6 +126,19 @@ no SD card affordance on the main Menu screen. That means:
   strong barrel/pillow distortion — it looks like a normal `border-radius` rounded rectangle
   with a bottom drop-shadow/reflection. Treat "pillow CRT" as **fan consensus / visually
   overstated**, not something to over-engineer in CSS.
+
+> **⚠️ SUPERSEDED (2026-07-24) — mostly right, but the reasoning needs fixing.** The bow
+> **is real**; it was simply invisible at 420 px (a 1.5%-of-width bow is 0.6 px there).
+> Nintendo's own icon-mask bitmaps, extracted from `wii_design_specs.pdf` p.9 at native
+> resolution and measured by sub-pixel edge detection, show the aperture edge travelling
+> ≈1.75 px outward on a 120-px-wide 4:3 mask (**≈1.5% of tile width**, ≈1.2% of height;
+> the 16:9 mask is flatter still at ~0.7%). Crucially the bow is **CONVEX (barrel)** —
+> the opposite of the "concave pillow" the fan description implies. Best single model is
+> a superellipse with n ≈ 7.2 (4:3) / 8.4 (16:9); equivalent corner radius ≈ 16.5% of
+> tile *height*. Recommended wording: not "pillow CRT is a myth" but **"the tile is a
+> mild convex superellipse; a rounded rectangle is faithful to within ~1.5% of width."**
+> See `context/components/channel-tile.md` §1.3. Evidence tier: pixel measurement of an
+> official Nintendo source bitmap.
 - **Size & aspect**: tiles measure roughly **84px wide × 45px tall** in the 420×236 reference
   capture (~1.87:1, landscape-oriented) — i.e. noticeably wider than tall. (Measured by
   horizontal/vertical pixel-transition scans of the reference screenshot; treat as
@@ -124,6 +169,27 @@ no SD card affordance on the main Menu screen. That means:
   `context/channels.md` (that empty tiles are plain gray placeholders) — the reference
   screenshot shows they are **not** perfectly blank; they carry a subtle Wii-branded watermark
   texture. No "+"-style insert glyph is visible.
+
+> **⚠️ SUPERSEDED (2026-07-24) — the watermark and the missing "+" are confirmed; the
+> tone, the "diagonal grain" and the implied stillness are all wrong:**
+> - **Fill is `#D4D4D4`**, not `#C6C6C6`–`#CCCCCC`. Sampled across all six empty tiles,
+>   identical to ±2/255 and perfectly neutral (R=G=B): top ~`#D1D1D1`, bottom ~`#DCDCDC`,
+>   keyline `#BDBDBD` on top/left and `#CECED3` on bottom/right — a *recessed* bevel,
+>   opposite in direction to the raised-glass shading of populated tiles.
+> - **The "diagonal grain" is a misread.** The striping is the capture's own **horizontal
+>   scanline pattern**, present across the entire frame including the background
+>   (amplitude ≈ ±7/255). The real grain baked into the art is isotropic noise at ~1%
+>   amplitude (σ≈2.5/255 vs σ≈0.3 for flat background).
+> - **Empty slots are ANIMATED.** They are a real layout object — `my_IplTop_b.brlyt` +
+>   `my_IplTop_b.brlan` — seeded to a **random start frame in [0, 2000)** per slot, so the
+>   loop is ≥2000 frames (≈33 s) and **every empty slot is out of phase with every other
+>   one**. A grid of empty tiles animating in lockstep is an instant "fan recreation" tell.
+> - Watermark geometry from the ripped texture: ~45 × 20 px inside a 128 × 96 canvas
+>   (~35% of tile width, ~21% of height, centred), rendered at ~4% contrast against the
+>   fill — near-subliminal, must not be legible.
+> See `context/components/empty-slot-and-sd-icon.md` §A.1.1 / §A.5 and
+> `context/decomp-findings.md` §5.1. Evidence tier: pixel measurement + texture rip +
+> decomp.
 - **Disc Channel (no disc) tile**: glossy near-white tile (`#ECECEC` top fading to `#E3E3E3`
   toward the bottom, sampled) containing a chrome/silver disc graphic with a radial specular
   highlight and a soft shadow/reflection ellipse beneath it — consistent with
@@ -135,6 +201,23 @@ no SD card affordance on the main Menu screen. That means:
   glow color, and transition timing are **unconfirmed / no citable source found** this session.
   Recommend verifying against Wii Menu gameplay-footage video before pixel-matching a
   hover/select treatment.
+
+> **⚠️ SUPERSEDED (2026-07-24) — this gap is largely closed, and the framing was wrong:**
+> - **Hover does not touch the tile art at all.** The icon layout is never deformed.
+>   Hover draws two *separate overlaid layouts*: a highlight/cursor object
+>   (`my_IplTop_d.brlyt`, single pane `Cursur_a`, animations `FocusOn` / `FocusOff` /
+>   `Select`) and a **channel-name balloon** (`my_IplTopBalloon_a.brlyt`), which appears
+>   after a **20-frame / 333 ms** dwell with the sound `WIPL_SE_BALLOON`. Nintendo's own
+>   spec documents the balloon: *"The title specified here will pop-up when the cursor is
+>   moved over the unselected icon in the Wii Menu"* (`wii_design_specs.pdf` §5.2.3).
+>   So there is no scale, no glow and no wobble on the tile itself.
+> - **"Select" is not an enlarged tile.** Clicking replaces the grid with a **full-screen
+>   banner** — a different asset (`banner.brlyt`, ≤512 KB) at a different aspect ratio
+>   (590×332 in 4:3 / 810×332 in 16:9) behind a black frame, with "Wii Menu" / "Start"
+>   buttons. The transition is a **28-frame / 467 ms** camera zoom on an exact smoothstep
+>   curve, `cubic-bezier(0.5, 0, 0.5, 1)`.
+> See `context/components/channel-tile.md` §6–§7 and `context/decomp-findings.md`
+> §2.1–2.4, §3. Evidence tier: decomp + official.
 - **"Loading strip" for newly downloaded channels**: **no source was found** describing this
   detail in citable text form (searched specifically this session). It is a real, commonly
   remembered feature, but treat any specific implementation (colors, diagonal stripe pattern,
@@ -178,6 +261,19 @@ which itself admits it's an approximation:
 | Bottom bar background | `#CECFD2` (edges) → `#F0F0F0` (center) | Soft light-gray gradient, brightest near the wave's center dip |
 | **Accent cyan-blue** (wave divider line + button ring strokes) | **`#35BEED`** (rgb 53,190,237) | Found by scanning for the most saturated blue pixels along the bottom-bar divider and the "Wii"/envelope button rings — this is the single most Wii-blue-looking value actually present in the UI, used sparingly as a stroke/accent, not a fill |
 | Clock/date text | `#C3C4CB`–`#EFEFEF` range (anti-aliased) | Mid-gray, not black — soft, low-contrast text typical of the Menu's UI |
+
+> **⚠️ SUPERSEDED (2026-07-24) — four rows of this table have been re-measured:**
+> | Row | Corrected value |
+> |---|---|
+> | Grid gutter/recess background | **Delete this row.** Gutters measure 231–240 = page background; `#BEBEBE` is the tile keyline (see §1). |
+> | Empty slot tile fill | **`#D4D4D4`** (top `#D1D1D1` → bottom `#DCDCDC`), not `#C6C6C6`–`#CCCCCC`. |
+> | Bottom bar background | Not a horizontal gradient. Horizontally **uniform**; vertically **dark at top → light below**, anchored to the curved edge: `#AAAFB8` at the contour, brightening over ~20 px to ~`#D3D5DB`, easing to `#CDCFD7` at the screen bottom. The grey is **cool** — blue runs 7–9 levels above red; do not use a neutral grey. |
+> | Accent cyan `#35BEED` | Accurate but it is the *peak-saturation* value, found in a ~10-column window near each corner button. The **modal** value along the line is `#3BBDEA` (wings) / `#47BCE5` (trough). Keeping `#35BEED` as the project token is fine. |
+> | Clock/date text | The two are different: clock ink is flat **`#9B9B9B`** on the `#EDEDED` page background; date ink is **`#747476`→`#7D7D7E`** on the bar. Same contrast ratio (Δ84) over different substrates — hardcode one grey and you will get one of them wrong. |
+>
+> See `context/components/bottom-bar-container.md` §2–§3,
+> `context/components/empty-slot-and-sd-icon.md` §A.1.1,
+> `context/components/date-display.md` §5c. Evidence tier: pixel measurement.
 
 **Practical takeaway for the rebuild**: use light neutral gray/off-white (`#E4E4E4`–`#F2F2F2`
 range) as the dominant background, reserve the bright cyan-blue (`~#35BEED`) strictly for
@@ -232,6 +328,18 @@ Directly observed in the reference screenshot (System Menu 4.0+ era — see §0)
   of the two corner circular buttons and arcs upward toward the center where the clock sits —
   giving the bottom bar a signature "scalloped shelf" silhouette rather than a straight edge.
   This is a purely decorative/structural divider, not itself interactive.
+
+> **⚠️ SUPERSEDED (2026-07-24): the curve description is INVERTED.** The bar's top edge
+> is **raised and flat at the two corner buttons** and **dips down across the centre** —
+> not the other way round. Measured contour (420 × 236 frame): flat wing at y = 171 for
+> x = 0→74, S-curve down to y = 196 at x = 148, flat trough y = 196 across x = 148→271,
+> mirrored back up. That is wings at **72.5% of screen height** and a trough at
+> **83.1%**, i.e. a **25 px / 10.6%-of-height** drop in the middle. The wing flats end at
+> exactly the pixel where each corner button's ring ends (x = 74 and x = 345) — the
+> silhouette is derived from the buttons, and the trough is the leftover span, dropped to
+> create room for the clock. "Decorative, non-interactive" is correct.
+> See `context/components/bottom-bar-container.md` §1.1–§1.5 (which includes an exact
+> Bézier fit, RMS 0.34 px). Evidence tier: pixel measurement.
 - **Bottom-left**: a circular button with a cyan ring-outline and light-gray fill, labeled
   **"Wii"** — this is the system options/settings entry point.
 - **Immediately right of the Wii button**: a small flat gray **SD card slot icon** (a simplified
@@ -239,6 +347,16 @@ Directly observed in the reference screenshot (System Menu 4.0+ era — see §0)
   corner buttons). As noted in §0, this icon's presence dates the reference screenshot to
   **System Menu 4.0 or later** (added alongside the SD Card Menu feature,
   `context/version-history.md` / WiiBrew).
+> **⚠️ SUPERSEDED (2026-07-24): the clock is NOT on the bar.** The accent line passes
+> *between* the time and the date. The clock digits sit **entirely above** the trough
+> line, on the page background (sampled behind them at (210,180): `rgb(239,239,239)` —
+> identical to the backdrop above the grid); the date sits **below** it, printed on the
+> bar surface (sampled at (250,210): `rgb(200,202,208)` — bar fill). Only the date is
+> actually on the bar. Nesting the clock inside a "bottom bar" container will put it on
+> the wrong surface and break its colour relationship.
+> See `context/components/bottom-bar-container.md` §6.1 and
+> `context/components/date-display.md` §4a. Evidence tier: pixel measurement.
+
 - **Center**: a large clock reading **"12:00 AM"** in soft gray, with the smaller-size AM/PM
   suffix, and the date **"Fri 1/1"** in matching gray directly beneath it. Per
   `context/version-history.md`, the clock itself was introduced in **System Menu 3.0 (Aug 6,
@@ -258,6 +376,22 @@ Directly observed in the reference screenshot (System Menu 4.0+ era — see §0)
   semi-transparent. Flag this as a correction to the brief's premise: pixel sampling doesn't
   show a see-through/translucent bar in this screenshot; if a translucent look is desired for
   the web version it would be a deliberate stylization rather than a faithfully sourced detail.
+
+> **⚠️ SUPERSEDED (2026-07-24) — opacity CONFIRMED, gradient WRONG, texture OVERSTATED:**
+> - **Opaque: confirmed**, with a stronger proof than eyeballing — the background above
+>   the bar swings across a 29-level range horizontally while the bar fill stays within
+>   4 levels. A translucent bar would inherit that variation proportionally to its alpha;
+>   it inherits none.
+> - **The gradient does not run edge→centre.** The fill is horizontally uniform at every
+>   x from 0 to 345. The real gradient is **vertical and anchored to the curved top edge**:
+>   ~`#AAAFB8` at the contour, brightening over ~20 px (8.5% of H) to ~`#D3D5DB`, then
+>   easing slightly to `#CDCFD7` at the bottom. Model it as a flat cool-grey base
+>   (~`#D0D2D9`) plus an **inner shadow that follows the curve** — a single
+>   `linear-gradient(to bottom, …)` across the whole bar will make the wings look wrong.
+> - **"Brushed-metal/glossy" overstates it:** adjacent samples differ by ≤2 levels. It is
+>   a clean gradient with no measurable noise, grain or scanline.
+> See `context/components/bottom-bar-container.md` §2 and §5. Evidence tier: pixel
+> measurement.
 - **Health & Safety / general Settings icon**: **not present as its own bottom-bar icon** in
   the reference screenshot or in any sourced material found this session. The Health & Safety
   screen is a separate full-screen warning shown once at console power-on, *before* the Wii
@@ -298,6 +432,14 @@ Directly observed in the reference screenshot (System Menu 4.0+ era — see §0)
   screenshot, the clock and date render **bottom-center** (on the curved bottom bar, under the
   grid), **not top-left**. See §5 for full detail. No top-left UI element is present in the
   reference screenshot at all; the top of the screen is just plain background above the grid.
+
+> **ℹ️ ADDENDUM (2026-07-24):** Bottom-centre is **correct** and supersedes
+> `context/clock.md` §1's "top-left" claim — this is the single most useful correction in
+> this doc. One refinement: only the **date** is on the bar; the **clock** is above the
+> accent line on the page background (§5 marker above). A second refinement from the
+> decomp: the clock/date are anchored *inside* the page containers (`N_Clock0/1/2`), so
+> they **slide horizontally with the grid** during a page turn rather than staying fixed.
+> See `context/decomp-findings.md` §9.7. Evidence tier: pixel measurement + decomp.
 - **Weather / news live-tile ticker text**: already well-covered in `context/channels.md` and
   not re-derived here — summary: since **System Menu 3.0 (Aug 6, 2007)**, the Forecast Channel
   tile shows a live current-conditions weather icon for the user's location, and the News
@@ -337,6 +479,16 @@ Key implications:
   at the **grid/page level** (still fixed 4×3, no extra columns), but **individual tile art
   itself** could be authored with real extra horizontal pixels for 16:9 rather than only being
   stretched. Worth reconciling if pixel-perfect tile art fidelity matters.
+> **ℹ️ ADDENDUM (2026-07-24) — this is now confirmed as the project's layout basis.**
+> The System Menu's own projection matrix is set from
+> `System::getProjectionRect4x3/16x9()` (`iplSystem.cpp:1187–1199`) to
+> **x ∈ [−304, 304] / y ∈ [−228, 228] → 608 × 456 in 4:3**, and
+> **x ∈ [−416, 416] → 832 × 456 in 16:9**. Vertical extent is identical across aspect
+> ratios; only width changes (scale factor 832/608 = 1.36842). Tile half-extents in code
+> are `{64, 48}` (4:3) and `{85, 48}` (16:9) → **128 × 96 / 170 × 96**, exactly matching
+> the spec PDF row below. Build against a 608×456 / 832×456 virtual canvas.
+> See `context/decomp-findings.md` §1. Evidence tier: decomp + official.
+
 - **Full-screen banners target roughly 608–670px-wide × 456px-tall canvases** — noticeably
   *not* the commonly-cited "640×480." This is a real, documented internal target distinct from
   the raw EFB/XFB hardware numbers already covered in `context/technical-specs.md` §1. For a

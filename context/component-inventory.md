@@ -1,5 +1,13 @@
 # Wii Menu — Home Screen Component Inventory
 
+> **⚠️ THIS DOC IS PARTLY OUT OF DATE (annotated 2026-07-24).** It is an inventory and a
+> punch list, and the punch list has since been worked through — every one of its seven
+> prioritized deep-dives now exists under `context/components/`. Its *coverage grades* are
+> therefore stale, and two of its "well-covered, no deep-dive needed" calls (the clock,
+> item 10; the pointer, item 13) turned out to be wrong. Its single most valuable call —
+> item 11, that the date contradicts `clock.md` — was **correct**. Markers inline.
+> See `context/README.md` for the current index.
+
 Purpose of this doc: a **systematic inventory** of every distinct visual/interactive UI
 component that appears on the Wii Menu home screen (the channel-grid screen), to serve as
 the punch list for a follow-up round of **per-component deep-dive docs**. This doc does not
@@ -206,6 +214,22 @@ The digital time readout in the top-left area.
 
 ## 11. Date display — **flag: likely contradicts `clock.md`'s conclusion**
 
+> **✅ RESOLVED (2026-07-24) — this item was RIGHT and is now settled; close it.** The
+> date **is** shown on the main Wii Menu, as an element separate from the clock. Confirmed
+> across three manual editions (two US, one UK/PAL), by the manual's rendered page images
+> (not just the OCR layer), and by six real screenshots. Format is `DDD M/D` (`Fri 1/1`) —
+> no leading zeros, no year, 3-letter Title-Case weekday — centred on the screen midline,
+> **below** the cyan divider on the bar, with the clock **above** the divider on the page
+> background. The two use different typefaces (seven-segment vs proportional sans),
+> different sizes (date ≈0.76×) and different greys.
+> Note the trap that produced the original error: `grep -i "current date"` on the US OCR
+> **misses** the callout (it is line-wrapped as `Current` / `Date`) and instead hits an
+> unrelated Message Board callout. Read the section; don't grep it.
+> Note also the honest nuance: `clock.md` was right that the *clock component* has no date
+> pane — the date is drawn by a different subsystem. It was wrong about the *screen*.
+> See `context/components/date-display.md` (the definitive treatment).
+> Evidence tier: official ×3 + pixel measurement ×6 + decomp.
+
 A separate "Current Date" readout, distinct from the time.
 
 - **[Official] — new finding this pass, directly relevant:** the Wii Operations Manual —
@@ -272,6 +296,23 @@ The white gloved-hand cursor driven by the Wii Remote's IR pointer.
 
 ## 14. Other distinct components found
 
+> **⚠️ SUPERSEDED (2026-07-24) — item 14a below describes the preview as "the tile
+> enlarges into a preview." It does not.** The grid is **replaced** by a full-screen
+> banner drawn from a completely separate asset at a different aspect ratio, under a
+> black frame, with blue arrows at the screen edges that step to the **adjacent channel**
+> without returning to the grid. The left button is contextual ("Wii Menu" from the grid,
+> "SD Card Menu" from the SD Card Menu); the right is "Start", or "Update" when the
+> channel has a pending update, and it has a **real disabled state** that greys out and
+> plays `WIPL_SE_GRAY_BUTTON` when pressed. Zoom = 28 frames / 467 ms, exact smoothstep.
+> Item **14b (page indicator)** resolves **negative** — none exists on the Wii Menu.
+> Item **14c ("newly arrived" badge)** should be **closed as unconfirmable by design**:
+> Nintendo specifies the *mechanism* (a pane group named `New`, plus `Whole`/`New`
+> animation tags) and deliberately leaves the artwork to each channel's own developer.
+> See `context/components/channel-tile.md` §7 and §9,
+> `context/components/page-navigation.md` §8,
+> `context/components/transient-states-and-overlays.md` items 2 and 4.
+> Evidence tier: official + decomp.
+
 ### 14a. Channel-preview / "Start" overlay
 When a tile is single-clicked (not double-clicked/launched), Nintendo Support's "How to
 Arrange Channels" page (cited in `animations-interactions.md` §3) and this project's own
@@ -315,6 +356,26 @@ official spec but visually undescribed.
 ---
 
 ## Prioritized recommendation: next 7 deep-dive docs
+
+> **⚠️ SUPERSEDED (2026-07-24): all seven of these deep-dives have been written, plus
+> several more, and every item on this list is now closed or reduced.** Current status:
+> | # | Item | Status |
+> |---|---|---|
+> | 1 | Date display | **Resolved — date IS shown.** `components/date-display.md` |
+> | 2 | Page-nav + indicator | **Resolved.** 333 ms horizontal slide; **no indicator exists at all** (item 14b resolves *negative*); arrows are removed rather than greyed. `components/page-navigation.md` |
+> | 3 | Bottom bar container | **Resolved.** Exact contour, Bézier fit, fill model, opacity proof. `components/bottom-bar-container.md` |
+> | 4 | Message Board open/close | **Partly resolved.** Timings exact (333 ms grid / 667 ms bar, desynchronised, **no fader**); the "flip" motion itself is still unproven. |
+> | 5 | SD Card Menu icon | **Resolved.** Flat pictogram, no button chrome; greys rather than disappears and stays clickable. `components/empty-slot-and-sd-icon.md` |
+> | 6 | Empty-slot interaction | **Resolved.** Inert at rest, highlighted drop target during a drag — and the slots are **animated**. |
+> | 7 | Channel-preview overlay | **Resolved.** Full-screen banner, contextual left button, ≥1000 ms dwell, 467 ms zoom. |
+>
+> Items this list called "already well-covered" that turned out **not** to be: the **clock**
+> (item 10 — `clock.md` contains several disproven claims) and the **Wii Remote pointer**
+> (item 13 — the single-cursor model is wrong; there are four numbered cursors plus a
+> separate authored grab layout). Neither should be "promoted" as-is.
+> The highest-leverage remaining work is no longer a component doc: it is **extracting
+> `.brlan` animation contents from a NAND dump**, which is the only thing that can settle
+> what the remaining animations actually *look* like.
 
 Ranked by (a) how thin/contradictory existing coverage is and (b) how central the component
 is to the visual/interactive experience of the home screen:

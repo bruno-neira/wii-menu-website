@@ -71,6 +71,18 @@ This is worth stating plainly since it's easy to mis-attribute:
   (some sources round to "47 movable slots" since the Disc Channel slot is fixed/non-empty).
   Paging between the 4 screens is done with the Wii Remote **+ / − buttons** or D-pad.
   Source: [WiiBrew: System Menu](https://wiibrew.org/wiki/System_Menu).
+> **ℹ️ ADDENDUM (2026-07-24):** For the 4.3 target this project is recreating, the grid
+> size is no longer uncertain — it is compile-time constant:
+> `MAX_CHANNEL_ROW 4` × `MAX_CHANNEL_COLUMN 3` = `MAX_CHANNEL_INDEX 12`,
+> `MAX_CHANNEL_PAGE 4`, `MAX_CHANNEL_TOTAL 48`, and `mMaxPages` is assigned
+> `MAX_CHANNEL_PAGE` unconditionally — **never recomputed from how many channels you own.**
+> So all four pages and both arrows exist even on a console with six channels installed.
+> Index order is **row-major, 4 per row** (`index = row × 4 + col`) — note the constant
+> names are transposed relative to what you would expect. The current page **persists to
+> NAND** across channel launches and reboots.
+> The open question below (when the grid *grew* to this size) is untouched: the decomp is
+> 4.3-only. Evidence tier: decomp.
+
 - **Uncertain / gap:** WiiBrew doesn't give an exact version number for when the grid grew from
   its original (smaller, launch-era) channel count up to the full 4-page/48-slot layout — it's
   described as a fact of "the System Menu" generally rather than pinned to one release. Given how
@@ -105,6 +117,16 @@ This is the weakest-documented area in fan-technical sources (WiiBrew is written
 hackers/modders, so it logs functional/security diffs far more than pixel-level UI changes).
 Based on available evidence:
 
+> **⚠️ SUPERSEDED (2026-07-24): the Wii Menu's background is NOT a blue gradient.**
+> Direct pixel sampling of a real capture gives a **near-white neutral light grey**
+> (`#E4E4E4`–`#EFEFEF`, and `#E6E6E6` in the grid gutters). Blue appears only as a
+> **targeted accent** — the ~1 px cyan divider stroke on the bottom bar's top edge, the
+> two round buttons' rings, and individual channel tiles' own artwork. The remembered
+> "Wii blue" is the console's box/branding blue, not the Menu UI. Tiles are also
+> **landscape rounded rectangles (16:11 / 20:11), not squares**. The *stability* claim in
+> this bullet is unaffected and still correct.
+> See `context/visual-design.md` §3. Evidence tier: pixel measurement.
+
 - **The core visual identity (blue gradient background, white/silver rounded-square channel
   tiles, bottom status bar) appears to have stayed consistent for the Wii's whole life** — there
   is no documented "menu redesign" the way, say, the Wii U Menu or 3DS HOME Menu got overhauls.
@@ -119,6 +141,22 @@ Based on available evidence:
     grid rather than the bottom bar itself, but its update is bundled with the 4.0 release.
   - **Wii Shop Channel / SD Card Menu** icon — SD Card Menu access point added at 4.0.
   - Message Board icon — present pre-3.0 but gained the flashing/notification behavior at 3.0.
+
+> **⚠️ SUPERSEDED (2026-07-24): there is no Health and Safety bottom-bar icon, and no Wii
+> Speak one either.** The bottom bar of the Wii Menu is only ever **three** things:
+> `B_Bbs` (Message Board), `B_Set` (the Wii button), and the SD Card icon — the latter as
+> a separate scene bolted on in 4.0. The other named panes in the shared layout
+> (`B_Ch`, `B_Cal`, `B_Add`, `B_CalExit`, `B_AddExit`, `B_Add_R`, `B_Dust`) belong to the
+> **Message Board / Calendar / letter-writing screens**, which reuse the same layout file.
+> Health & Safety is a **pre-Menu boot screen** (`it_Has_a.brlyt` in `health.ash`), not a
+> bar item; Wii Speak surfaces as its own grid tile. Nintendo's manual diagram labels
+> exactly six things on this screen — Current Time, Wii Settings and Data Management,
+> SD Card Menu, Wii Channels, Current Date, Wii Message Board — and no others.
+> The 3.0 flashing-notification attribution below is **correct**, and now has exact
+> numbers (a silent 6667 ms count loop plus a 2667 ms jingle flourish repeating every
+> 3000 ms), though those are verified for 4.3 and extrapolated backwards.
+> See `context/decomp-findings.md` §8.1, `context/system-ui.md` §0,
+> `context/components/mail-button.md` §4.2 and §8. Evidence tier: decomp + official.
   - **Uncertain / gap:** exact iconography for the No-Cartridge/Wii Options/Wii Settings icons
     and their pixel-level appearance per version wasn't confirmed from text sources — recommend
     cross-checking against archived screenshots/video (YouTube retrospectives, e.g. "Wii Menu
