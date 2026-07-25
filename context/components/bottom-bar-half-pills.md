@@ -154,6 +154,13 @@ the flat y = 171 section of the groove):
 | 213 | `#d2d3d9` (210,211,217) | `#d5d6dd` (213,214,221) | −3 |
 | 219 | `#d0d1d7` (208,209,215) | `#d3d4db` (211,212,219) | −3 |
 
+Cross-checked against a **second, independent** bare-bar reference column on the opposite side of
+the frame (x = 344–350, also under the flat y = 171 contour, outside the right pill): the two
+models agree, and the deltas reproduce (−1.8, −2.4, −3.4, −4.0, −4.0, −3.0, −3.0 at y = 185, 195,
+200, 205, 210, 215, 219). Note also that the left and right pill interiors are **pixel-identical**
+at every sampled row (203 / 214 / 215 / 213 / 212 / 211 / 209), which is further confirmation that
+the two plates are the same shape mirrored. [Direct observation]
+
 So:
 
 - **The interior is ~1.5 % DARKER than the bar, not lighter.** [Direct observation]
