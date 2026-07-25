@@ -206,21 +206,27 @@ and toggle the finger.
 
 ### 3.3 Colours and stroke
 
-**[Asset — measured]** The artwork is **pure achromatic** — every opaque pixel has R = G = B. There
-is no colour anywhere in the cursor atlas.
+**[Asset — measured]** The *textures* are **pure achromatic** — every opaque pixel has R = G = B, and
+there is no colour anywhere in the cursor atlas.
+
+> ⚠️ **Do not conclude from this that the cursor is colourless.** It is not. The atlas is greyscale
+> because the numeral plate is a **tint mask** and the colour is supplied at render time by the
+> material's `tev color 0` register — which lives in the `.brlyt`, not the `.tpl`. **The hand body is
+> genuinely white; the numeral and the wrist wash are the player colour.** See §4.2–4.3.
 
 - **Fill:** `#FFFFFF`, flat, no gradient in the base sprite.
 - **Outline:** `#000000`, hard, with a 1–2 px antialiased ramp (measured intermediate values
   `#111111`, `#222222`, `#333333`, `#444444`, `#666666`, `#888888`, `#AAAAAA`, `#CCCCCC` — a clean
   8-step blend, consistent with a downscaled/antialiased vector original).
-- **Outline weight:** **≈3 px on a 62 px-tall hand** (measured at the fingertip: rows y2, y3, y4 are
-  solid black at x22 before white begins at y5). That is **≈4.8 % of the hand's height**, or in
-  stroke terms roughly `stroke-width: 6` on a 43 × 62 viewBox with the stroke centred on the path.
-  This is a *very* heavy outline — it is what makes the cursor read against any background.
-- **Gloss/gradient:** **none in the hand sprite itself.** A subtle grey gradient *is* present, but it
-  lives in the numeral overlay tile and is multiplied on at render time (§4.2). There is no specular
-  highlight, no bevel, no rim light. The Frutiger-Aero gloss of the Wii Menu does *not* extend to the
-  cursor — it is deliberately flat, high-contrast, and readable.
+- **Outline weight:** **≈3–4 px on a 42 × 62 hand** (measured at the fingertip: rows y2, y3, y4 are
+  solid black at x22 before white begins at y5). Best expressed **relative to width**: **≈9.5 % of the
+  hand's width**, or `stroke-width: 6` on a 43 × 62 viewBox with the stroke centred on the path.
+  This is a *very* heavy outline — it is the single most defining visual trait, and it is what makes
+  the cursor read against any background. **Do not thin it.**
+- **Gloss/gradient:** **no gloss.** No specular highlight, no bevel, no rim light. The Frutiger-Aero
+  gloss of the Wii Menu does *not* extend to the cursor — it is deliberately flat, high-contrast and
+  readable. There *is* a soft gradient, but it is the **player-colour wash** rising from the wrist
+  (§4.2), not a grey shading pass.
 
 ### 3.4 The drop shadow
 
@@ -1231,8 +1237,8 @@ screen", not "a fixed pixel size". That is the behaviour a `vh`-based web sizing
 **[Inferred]** The Wii rendered at a fixed 480p-class resolution, so a fixed layout-unit size *was* a
 fixed fraction of the screen.
 On the web, scaling with `vh` reproduces that; scaling with a fixed `px` does not. **Use `vh`, and
-clamp it** — 13.6 vh on a 2160-tall display is a 294 px hand, which is comical. `clamp(72px, 13.6vh, 160px)`
-for the height is a sane compromise **[Inferred]**.
+clamp it** — an unclamped 10.5 vh on a 2160-tall display is a 227 px hand, which is comical.
+`clamp(64px, 10.5vh, 132px)` for the height is a sane compromise **[Inferred]**.
 
 ---
 
@@ -1602,11 +1608,20 @@ built-in latency. And Chromium multiplies custom cursors by `cursor_accessibilit
 legal 100 px cursor over the cap and make it vanish for exactly the users who most need to see it.**
 (§12.6 revisits this: the same fact is an *argument in Approach A's favour* on accessibility grounds.)
 
-**Verdict on Approach A.** The authentic cursor is ~102 × 147 CSS px at 1080p (§8). That is over the
-128 cap on height, so it is **silently ignored** in Chromium *and* WebKit. Even shrunk to fit under
-128, anything over **32** px reverts to the arrow near every window edge in **all three** engines —
-and in WebKit at any size. And rotation is impossible — you would need a pre-rendered image per angle,
-swapped at a 50 Hz ceiling. **`cursor: url()` cannot do what this project wants.**
+**Verdict on Approach A.** The authentic cursor is **≈79 × 113 CSS px at 1080p** (§8 — revised down
+from the first pass's 102 × 147 once the layout's 0.84 texture scale was recovered). That is **under**
+the 128 reject threshold, so unlike the first pass's conclusion it would not be rejected outright at
+default settings — **but it still fails**, three ways:
+
+1. At **113 px it is far over the 32 px containment threshold**, so it reverts to the keyword arrow
+   near every window edge in **all three** engines — and in WebKit at any size at all.
+2. An OS **"large cursor" accessibility setting** multiplies it past 128 and it vanishes entirely
+   (Blink's `cursor_accessibility_scale_factor_`), for exactly the users who most need to see it.
+3. **Rotation is impossible** — you would need a pre-rendered image per angle, swapped at a 50 Hz
+   ceiling — and so is the layered shadow and the live player-colour tint.
+
+**`cursor: url()` cannot do what this project wants.** The size correction narrows the margin; it does
+not change the answer.
 
 *(Where it **is** the right tool: a small, static, non-rotating cursor ≤ 32 × 32. If you want a
 low-cost "Wii flavour" fallback, ship a 32 × 32 PNG of the hand for reduced-motion / low-power users —
@@ -1748,7 +1763,7 @@ Reasoning, against the three stated requirements:
 
 | Requirement | `cursor: url()` | DOM follower |
 |---|---|---|
-| **(a) fairly large** (~102 × 147 px) | **Impossible.** Over the 128 cap in Chromium and WebKit → silently ignored. Even under it, >32 px cursors are dropped near viewport edges in both engines. | Unlimited. |
+| **(a) fairly large** (≈79 × 113 px at 1080p) | **Unusable.** Under the 128 reject threshold, but far over the **32 px** containment threshold → reverts to the arrow all around the window edge in all three engines, and vanishes entirely under an OS large-cursor setting. | Unlimited. |
 | **(b) possibly rotate** | **Impossible** without pre-rendering N images and swapping — and shape swaps are throttled to 50 Hz. | `transform: rotate()` on the compositor, free. |
 | **(c) change state on press** | Possible (`:active { cursor: url(fist.png) }`) but with up to 20 ms latency and a decode hitch on first use. | Instant, and animatable. |
 
@@ -2285,14 +2300,32 @@ export default function WiiCursor({ playerNumber = 1, enabled = true }) {
 
   if (!active) return null;
 
+  const tint = PLAYER_COLOR[(playerNumber - 1) % 4];
+
   return (
     <div ref={rootRef} className="wii-cursor" data-testid="wii-cursor" aria-hidden="true">
       <svg viewBox={`0 0 ${ART_W} ${ART_H}`} className="wii-cursor__art">
-        {/* TODO: replace with the redrawn paths — see cursor.md §11 for the measured spec.
-            Two layers: a soft dark silhouette (the N_SRot shadow), then the white+black hand. */}
+        {/* TODO: replace `d` with the redrawn path — see §11's redraw spec for every measurement.
+            Layer order mirrors the console's pane order (§3.4):
+              N_SRot shadow → N_Rot hand → tint mask (numeral + bottom gradient). */}
+        <defs>
+          {/* The player-colour wash up from the wrist: 0% at y38 → 27% at y62 (§4.2). */}
+          <linearGradient id="wii-tint" x1="0" y1="38" x2="0" y2="62"
+                          gradientUnits="userSpaceOnUse">
+            <stop offset="0"   stopColor={tint} stopOpacity="0" />
+            <stop offset="1"   stopColor={tint} stopOpacity="0.27" />
+          </linearGradient>
+          <clipPath id="wii-clip"><path d="…" /></clipPath>
+        </defs>
+
+        {/* Offset is the retail (+3,−3) on a 54-unit quad, converted to texture units (×64/54). */}
         <path className="wii-cursor__shadow" d="…" />
         <path className="wii-cursor__hand"   d="…" />
-        <text className="wii-cursor__num" x={22.5} y={49} textAnchor="middle">{playerNumber}</text>
+        <rect className="wii-cursor__tint" x="0" y="0" width={ART_W} height={ART_H}
+              fill="url(#wii-tint)" clipPath="url(#wii-clip)" />
+        <text className="wii-cursor__num" x={23.6} y={49} textAnchor="middle" fill={tint}>
+          {playerNumber}
+        </text>
       </svg>
     </div>
   );
@@ -2313,10 +2346,11 @@ export default function WiiCursor({ playerNumber = 1, enabled = true }) {
   position: fixed;
   top: 0;
   left: 0;
-  width: calc(9.43vh);                     /* 43/456 of viewport height — see §8 */
-  height: clamp(72px, 13.6vh, 160px);      /* 62/456, clamped so it stays sane on 4K */
-  aspect-ratio: 43 / 62;
-  height: auto;
+  /* §8: 50.6/480 of viewport height. Clamped so it stays sane on a 4K display,
+     where an unclamped 10.5vh would be a 227px hand. */
+  height: clamp(64px, 10.5vh, 132px);
+  aspect-ratio: 43 / 62;                   /* texture aspect ≈ 0.70 — width follows */
+  width: auto;
   pointer-events: none;                    /* mandatory (§12.2) */
   will-change: transform;                  /* one legitimate use: a permanent, always-moving layer */
   contain: layout paint size;              /* isolate from the page's invalidation work (§12.8) */
@@ -2327,9 +2361,11 @@ export default function WiiCursor({ playerNumber = 1, enabled = true }) {
   margin-left: -29.07%;                    /* place the fingertip on the pointer position */
 }
 .wii-cursor__art  { display: block; width: 100%; height: 100%; overflow: visible; }
-.wii-cursor__hand { fill: #fff; stroke: #000; stroke-width: 6; stroke-linejoin: round; }
-.wii-cursor__shadow { fill: rgba(0, 0, 0, 0.3); transform: translate(2px, 3px); }
-.wii-cursor__num  { fill: #000; font-weight: 700; font-size: 17px; }
+.wii-cursor__hand   { fill: #fff; stroke: #000; stroke-width: 6; stroke-linejoin: round; }
+/* Retail: rgba(0,0,0,90/255) = 35.3%, pane offset (+3,−3) on a 54-unit quad
+   → (+3.56, +3.56) in this 64-unit texture space (§3.4). */
+.wii-cursor__shadow { fill: rgba(0, 0, 0, 0.353); transform: translate(3.56px, 3.56px); }
+.wii-cursor__num    { font-weight: 700; font-size: 17px; }   /* fill comes from the player colour */
 
 @media (prefers-reduced-motion: reduce) {
   .wii-cursor { transition: none; }
