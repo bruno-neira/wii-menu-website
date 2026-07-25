@@ -41,13 +41,13 @@ test.describe('gate', () => {
   test('noise atlas is reproducible across reloads', async ({ page }) => {
     const read = () =>
       page.evaluate(() => {
-        const els = [...document.querySelectorAll('.channel-static')]
+        const els = [...document.querySelectorAll('.channel-static__flicker')]
         const bg = getComputedStyle(els[0]).backgroundImage
         let h = 0
         for (let i = 0; i < bg.length; i++) h = (Math.imul(31, h) + bg.charCodeAt(i)) | 0
         return {
           atlasHash: h,
-          phases: els.map((e) => e.style.getPropertyValue('--snow-phase')),
+          phases: els.map((e) => e.style.getPropertyValue('--snow-drift-delay')),
         }
       })
 
@@ -71,7 +71,7 @@ test.describe('gate', () => {
    */
   test('noise is grain, not row bands', async ({ page }) => {
     const stats = await page.evaluate(async () => {
-      const el = document.querySelector('.channel-static')
+      const el = document.querySelector('.channel-static__flicker')
       const url = getComputedStyle(el).backgroundImage.slice(5, -2)
       const img = new Image()
       img.src = url

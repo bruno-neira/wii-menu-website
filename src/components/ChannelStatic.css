@@ -1,46 +1,99 @@
+/**
+ * Empty-slot TV snow.
+ *
+ * Structure extracted from Nintendo's my_IplTop_b.brlan
+ * (context/brlan-extraction.md §4): a 15 Hz texture-pattern flicker over four
+ * noise frames, plus two superimposed linear vertical scrolls at a 5:1 speed
+ * ratio. The scrolls are why the console's loop is 2000 frames (33.4s) even
+ * though the visible grain repeats every second — their interference is the
+ * long-period component.
+ */
+
 .channel-static {
   position: absolute;
   inset: 0;
-  z-index: 0; /* below .channel-inner::before gloss (z-index: 2) */
+  z-index: 0; /* below .channel-inner::before gloss */
   pointer-events: none;
-
-  /* Atlas is COLS wide x FRAMES tall -> 200% / 2400%.
-     With background-size-x at 200%, a background-position-x of P% slides the
-     image by P/100 of the element width, so 0-100% sweeps exactly one atlas
-     column. That is the per-tile crop, expressed responsively with no px math. */
-  background-size: 200% 2400%;
-  background-repeat: repeat;
-  background-position-x: var(--snow-x, 0%);
-  image-rendering: pixelated; /* nearest-neighbour keeps the grain crisp */
-
-  animation: channel-snow 1s steps(23, jump-none) infinite;
-  animation-delay: calc(var(--snow-phase, 0) * -1s); /* == setCurrentFrame(rand) */
+  overflow: hidden;
 }
 
-/* background-position-y travels 0% -> 100% across (FRAMES - 1) frame-heights,
-   so the discrete stops must be (FRAMES - 1) intervals. `steps(23)` alone emits
-   23 values and never reaches the final row; `jump-none` includes both endpoints
-   and emits 24 — one per atlas row exactly. Getting this wrong silently drops a
-   frame: invisible in review, visible as a hitch in the loop. */
-@keyframes channel-snow {
-  from {
-    background-position-y: 0%;
-  }
-  to {
-    background-position-y: 100%;
-  }
+/* Layer 1 — the flicker. Four noise frames on Nintendo's exact 15-step order. */
+.channel-static__flicker {
+  position: absolute;
+  inset: 0;
+  background-size: 200% 400%; /* atlas: 2 cols x 4 frames */
+  background-repeat: repeat;
+  background-position-x: var(--snow-x, 0%);
+  image-rendering: pixelated;
+  animation: snow-flicker 1001ms steps(1, end) infinite;
+}
+
+/* Layer 2 — fast vertical drift. One texture wrap per 6.673s (5 wraps per
+   33.366s console loop). */
+.channel-static__drift-fast {
+  position: absolute;
+  inset: 0;
+  background-size: 200% 400%;
+  background-repeat: repeat;
+  background-position-x: var(--snow-x, 0%);
+  image-rendering: pixelated;
+  opacity: 0.5;
+  animation: snow-drift 6673ms linear infinite;
+  animation-delay: var(--snow-drift-delay, 0ms);
+}
+
+/* Layer 3 — slow drift, exactly 1/5 the speed. The beat between layers 2 and 3
+   is what stops the tile looking like a straight loop. */
+.channel-static__drift-slow {
+  position: absolute;
+  inset: 0;
+  background-size: 200% 400%;
+  background-repeat: repeat;
+  background-position-x: var(--snow-x, 0%);
+  image-rendering: pixelated;
+  opacity: 0.35;
+  animation: snow-drift 33366ms linear infinite;
+  animation-delay: var(--snow-drift-delay, 0ms);
+}
+
+/* Nintendo's verbatim RLTP order: 0,1,2,3,0,2,1,0,3,1,2,0,1,2,3.
+   Deliberately not a round-robin — consecutive frames are never equal, frame 3
+   is rarer than the others, and the transitions 1->3 and 3->2 never occur. A
+   plain 0,1,2,3 cycle reads as a rhythmic pulse; this reads as noise. */
+@keyframes snow-flicker {
+  0.0000% { background-position-y: 0%; }
+  6.6667% { background-position-y: 33.3333%; }
+  13.3333% { background-position-y: 66.6667%; }
+  20.0000% { background-position-y: 100%; }
+  26.6667% { background-position-y: 0%; }
+  33.3333% { background-position-y: 66.6667%; }
+  40.0000% { background-position-y: 33.3333%; }
+  46.6667% { background-position-y: 0%; }
+  53.3333% { background-position-y: 100%; }
+  60.0000% { background-position-y: 33.3333%; }
+  66.6667% { background-position-y: 66.6667%; }
+  73.3333% { background-position-y: 0%; }
+  80.0000% { background-position-y: 33.3333%; }
+  86.6667% { background-position-y: 66.6667%; }
+  93.3333% { background-position-y: 100%; }
+  100% { background-position-y: 0%; }
+}
+
+/* One full texture wrap. The atlas is 4 frames tall, so 400% is one wrap. */
+@keyframes snow-drift {
+  from { background-position-y: 0%; }
+  to { background-position-y: 400%; }
 }
 
 /* A grid of flickering high-frequency noise is a genuine photosensitivity and
-   vestibular concern (WCAG 2.2.2, 2.3.1). Freeze it.
+   vestibular concern (WCAG 2.2.2, 2.3.1). Freeze every layer.
 
-   Note we do NOT also drop opacity here. The upstream research recommends that
-   as a way to reach authentic contrast from a punchier default — but this build
-   already renders at the console's measured 0.047, so dimming further would push
-   the effect below visibility entirely. Freezing alone is the correct fallback
-   at this contrast. */
+   We do NOT also dim it: this build already renders at the console's measured
+   contrast, so dimming would push it below visibility entirely. */
 @media (prefers-reduced-motion: reduce) {
-  .channel-static {
+  .channel-static__flicker,
+  .channel-static__drift-fast,
+  .channel-static__drift-slow {
     animation: none;
   }
 }

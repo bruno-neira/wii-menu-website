@@ -28,7 +28,7 @@ export async function preparePage(page, { instant = REFERENCE_INSTANT } = {}) {
   // background-image it produces is a data URL the compositor still has to
   // decode. Wait for it to be non-empty before capturing.
   await page.waitForFunction(() => {
-    const el = document.querySelector('.channel-static')
+    const el = document.querySelector('.channel-static__flicker')
     if (!el) return true // no empty tiles on this page is a valid state
     return getComputedStyle(el).backgroundImage.startsWith('url("data:image/png')
   })

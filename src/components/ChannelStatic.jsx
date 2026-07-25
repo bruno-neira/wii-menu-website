@@ -6,37 +6,42 @@ import './ChannelStatic.css'
  * TV snow for an empty channel slot.
  *
  * This is authentic, not decoration: the Wii really does render animated white
- * noise in empty slots. The shipped texture is a 128x96 4-bit intensity map of
- * per-pixel noise with a "Wii" wordmark stamped in it, in four independent
- * frames, seeded to a random start frame per slot. It is composited at only
- * ~4.7% contrast, which is why almost nobody remembers it as static.
+ * noise here. Nintendo's `my_IplTop_b.brlan` drives three superimposed tracks on
+ * one quad — a 15 Hz four-frame texture flicker plus two linear vertical scrolls
+ * at a 5:1 speed ratio — composited at only a few percent contrast, which is why
+ * almost nobody remembers it as static.
  *
- * See context/components/empty-slot-noise.md before changing anything here.
+ * See context/brlan-extraction.md §4 and
+ * context/components/empty-slot-noise.md before changing anything here.
  * The contrast knob lives in channelNoise.js.
  *
- * @param {number} index   Grid position. Seeds this tile's phase and crop so no
- *                         two tiles animate in lockstep.
- * @param {number} [frame] Freeze on a specific atlas row. For tests and
+ * @param {number} index   Grid position. Seeds this tile's scroll phase and
+ *                         crop so no two tiles drift in lockstep.
+ * @param {number} [frame] Freeze on a specific noise frame. For tests and
  *                         Storybook; omit to animate.
  */
 export default function ChannelStatic({ index = 0, frame }) {
   const { FRAMES } = NOISE_GEOMETRY
 
-  const style = useMemo(() => {
-    const frozen =
-      frame != null
-        ? {
-            animation: 'none',
-            backgroundPositionY: `${((frame % FRAMES) * 100) / (FRAMES - 1)}%`,
-          }
-        : null
-
+  const { base, frozen } = useMemo(() => {
+    const vars = tileSeedVars(index)
     return {
-      backgroundImage: `url(${getNoiseAtlas()})`,
-      ...tileSeedVars(index),
-      ...frozen,
+      base: { backgroundImage: `url(${getNoiseAtlas()})`, ...vars },
+      frozen:
+        frame != null
+          ? {
+              animation: 'none',
+              backgroundPositionY: `${((frame % FRAMES) * 100) / (FRAMES - 1)}%`,
+            }
+          : null,
     }
   }, [index, frame, FRAMES])
 
-  return <div className="channel-static" style={style} aria-hidden="true" />
+  return (
+    <div className="channel-static" aria-hidden="true">
+      <div className="channel-static__drift-slow" style={{ ...base, ...frozen }} />
+      <div className="channel-static__drift-fast" style={{ ...base, ...frozen }} />
+      <div className="channel-static__flicker" style={{ ...base, ...frozen }} />
+    </div>
+  )
 }

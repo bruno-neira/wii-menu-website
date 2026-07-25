@@ -24,7 +24,7 @@ test('snow freezes under prefers-reduced-motion', async ({ page }) => {
   await withReducedMotion(page)
 
   const state = await page.evaluate(() => {
-    const el = document.querySelector('.channel-static')
+    const el = document.querySelector('.channel-static__flicker')
     return {
       emulationActive: matchMedia('(prefers-reduced-motion: reduce)').matches,
       animationName: el ? getComputedStyle(el).animationName : null,
