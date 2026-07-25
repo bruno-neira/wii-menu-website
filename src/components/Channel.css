@@ -3,8 +3,29 @@
   /* Nintendo's visible aperture in the 16:9 space: 160x88 of a 170x96 cell.
      Note this is not 16:9 either — the tile is 1.818:1. */
   aspect-ratio: 160 / 88;
-  border-radius: 10% / 11%;
-  background: #b8bfc8;
+  /* Corner radius is ~16.5% of tile HEIGHT, measured from Nintendo's own icon
+     mask bitmaps. Expressed against height deliberately: a single percentage
+     resolves against width and height separately and yields elliptical corners
+     of the wrong proportion.
+
+     The real tile is not a pure rounded rectangle — its edges bow OUTWARD by
+     ~1.5% of width (a superellipse, n≈7.2). We tried expressing that as an
+     objectBoundingBox clip-path and reverted it: the measured gain was inside
+     the noise floor (SSIM moved 0.0017, below the 0.005 established by a
+     seed-only control run), and the authored path renders with visibly
+     angular, chopped corners at this size — strictly worse to look at for an
+     unmeasurable authenticity gain.
+
+     Nintendo's bow is 0.6px at the reference capture's scale. A rounded
+     rectangle is a faithful approximation to within ~1.5% of width, which is
+     the research's own conclusion. Revisit if `corner-shape: superellipse()`
+     gains cross-browser support. */
+  border-radius: 14.5px;
+  /* This layer IS the keyline: a 1px stroke around the aperture, measured at
+     #BEBEBE-#C2C2C2 on all four sides (context/components/channel-tile.md §2).
+     It is a genuine drawn stroke — darker than both the tile interior and the
+     gutter — not an antialiasing artifact. */
+  background: #bebebe;
   cursor: pointer;
   transition: transform 0.1s ease;
 }
@@ -19,8 +40,15 @@
 
 .channel-inner {
   position: absolute;
-  inset: 2.5% 1.5%;
-  border-radius: 8% / 9%;
+  /* 1px inset all round, so the keyline reads at a uniform width.
+
+     The radius MUST be the outer radius minus the inset, in the same absolute
+     units. Previously this was a percentage pair (8% / 9%), which resolved to a
+     12.4 x 7.5px ELLIPSE against a 14.5px circular outer corner — so at the
+     corners the inner curve crossed the outer one and erased the stroke
+     entirely. Concentric rounded rectangles need concentric radii. */
+  inset: 1px;
+  border-radius: 13.5px;
   background: #d8dadc;
   display: flex;
   align-items: center;
