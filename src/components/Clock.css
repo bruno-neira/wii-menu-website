@@ -10,31 +10,31 @@
 .clock-time {
   display: flex;
   align-items: center;
-  gap: clamp(2px, 0.64vw, 10px);
+  gap: 5.8px;
 }
 
 .seg-group {
   display: flex;
   align-items: center;
-  gap: clamp(2px, 0.64vw, 10px);
+  gap: 5.8px;
 }
 
 .seg-digit {
-  height: clamp(20px, 4.37vw, 66px);
+  height: 38.1px;
   width: auto;
 }
 
 .seg-colon {
-  height: clamp(20px, 4.37vw, 66px);
+  height: 38.1px;
   width: auto;
 }
 
 .clock-ampm {
   font-family: Arial, Helvetica, sans-serif;
-  font-size: clamp(8px, 1.72vw, 26px);
+  font-size: 15px;
   font-weight: 700;
   color: #9b9b9b;
-  margin-left: clamp(2px, 1.92vw, 29px);
+  margin-left: 16.7px;
   align-self: flex-end;
   letter-spacing: 1px;
 }

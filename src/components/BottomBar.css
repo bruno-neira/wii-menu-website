@@ -3,7 +3,7 @@
   bottom: 0;
   left: 0;
   right: 0;
-  height: 27.59%;
+  height: 125.8px;
   pointer-events: none;
 }
 
@@ -19,9 +19,9 @@
 .bar-left {
   position: absolute;
   left: 0;
-  top: 8.55%;
-  width: 15.64%;
-  height: 76.07%;
+  top: 10.7px;
+  width: 126.7px;
+  height: 95.7px;
   background: #d3d4db;
   border-radius: 0 9999px 9999px 0;
   pointer-events: all;
@@ -31,9 +31,9 @@
 .bar-right {
   position: absolute;
   right: 0;
-  top: 8.55%;
-  width: 15.64%;
-  height: 76.07%;
+  top: 10.7px;
+  width: 126.7px;
+  height: 95.7px;
   background: #d3d4db;
   border-radius: 9999px 0 0 9999px;
   pointer-events: all;
@@ -42,8 +42,8 @@
 /* Center area — left-aligned with clock at 43.78% of screen width; top=47.5% within bottom bar */
 .bar-center {
   position: absolute;
-  left: calc(43.78% + 2.5vw);
-  top: 47.5%;
+  left: 378.6px;
+  top: 59.7px;
   bottom: 0;
   display: flex;
   align-items: flex-start;
@@ -51,16 +51,16 @@
   pointer-events: none;
 }
 
-/* Flex row for day + date with Figma-proportional gap (32/1512 = 2.1vw) */
+/* Day + date row. Gap in stage px. */
 .bar-date-group {
   display: flex;
   align-items: center;
-  gap: 2.1vw;
+  gap: 20.1px;
 }
 
 .bar-date {
   font-family: Arial, Helvetica, sans-serif;
-  font-size: clamp(10px, 2.2vw, 33px);
+  font-size: 19px;
   color: #787879;
   letter-spacing: 0.5px;
 }
@@ -68,9 +68,9 @@
 /* Wii Button — positioned within bar-left */
 .wii-button {
   position: absolute;
-  left: 28.82%;
-  top: 5.77%;
-  height: 77.75%;
+  left: 36.5px;
+  top: 5.5px;
+  height: 74.3px;
   aspect-ratio: 1;
   border-radius: 50%;
   border: 2px solid #4cbadf;
@@ -114,7 +114,7 @@
 
 .wii-button-text {
   font-family: 'RocknRoll One', 'Helvetica Neue', Arial, sans-serif;
-  font-size: clamp(11px, 1.5vw, 16px);
+  font-size: 9.2px;
   font-weight: 700;
   color: #4a5060;
   letter-spacing: 0.5px;
@@ -124,9 +124,9 @@
 /* Mail Button — positioned within bar-right */
 .mail-button {
   position: absolute;
-  left: 12.30%;
-  top: 4.65%;
-  height: 80.28%;
+  left: 15.6px;
+  top: 4.5px;
+  height: 76.7px;
   aspect-ratio: 1;
   border-radius: 50%;
   border: 2px solid #4cbadf;

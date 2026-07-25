@@ -9,8 +9,8 @@
   overflow: hidden;
 }
 
-/* TV frame — maintains the MacBook Pro 14" frame ratio (1512:982).
-   Sized to fit within the viewport while keeping that ratio. */
+/* TV frame — presentation chrome, not part of the real System Menu (which
+   renders full-bleed). Kept as a deliberate framing device. */
 .tv-frame {
   position: relative;
   aspect-ratio: 1512 / 982;
@@ -19,14 +19,32 @@
   flex-shrink: 0;
 }
 
-/* Wii menu content — positioned at the reference screen's relative
-   location within the frame: 6.72% from top, 86.56% tall */
-.wii-menu {
+/* The region of the TV frame the menu occupies. The stage is scaled to fit
+   this box, so the hook measures the right container rather than the whole
+   frame. */
+.stage-area {
   position: absolute;
   top: 6.72%;
   left: 0;
   width: 100%;
   height: 86.56%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* The stage: a fixed 810x456 virtual coordinate space, scaled to fit.
+   Everything inside is expressed in literal stage pixels — the same units
+   Nintendo authored in — so measured values drop in without conversion and
+   there is a single rounding regime for the whole UI. */
+.wii-menu {
+  position: relative;
+  width: 810px;
+  height: 456px;
+  flex: 0 0 auto;
+  transform: scale(var(--stage-scale, 1));
+  transform-origin: top center;
   overflow: hidden;
 }
 
@@ -34,44 +52,54 @@
 .wii-bg {
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(ellipse 80% 60% at 50% 30%, #ececec 0%, #e8e8e8 60%, #e5e5e5 100%);
+  background: radial-gradient(
+    ellipse 80% 60% at 50% 30%,
+    #ececec 0%,
+    #e8e8e8 60%,
+    #e5e5e5 100%
+  );
   z-index: 0;
 }
 
-/* Channels area — Figma-derived: 70/850=8.24% gap above, channels end at 594/850=69.88%
-   leaving a 2.24% gap (19px) before the bottom bar at 72.41% */
+/* Channel grid area.
+   Nintendo's grid pitch is the icon authoring canvas: 170x96 per cell in the
+   16:9 space, with the visible tile 160x88 and the clipped ring forming the
+   gutter. The values below preserve the pre-refactor rendered geometry; the
+   pitch is already within ~1px of Nintendo's, but the tile/gutter split is not
+   (see context/components/channel-tile.md) and is corrected in Phase 2. */
 .channels-area {
   position: absolute;
-  top: 8.24%;
+  top: 37.6px;
   left: 0;
   right: 0;
-  bottom: 30.12%;
+  bottom: 137.3px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 8.2%;
+  padding: 0 66.4px;
   z-index: 1;
 }
 
-/* 4-column 3-row grid — gaps from Figma: 11px column / 9px row at 1512px reference */
 .channels-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  column-gap: clamp(3px, 0.73vw, 11px);
-  row-gap: clamp(3px, 0.60vw, 9px);
+  column-gap: 6.35px;
+  row-gap: 5.19px;
   width: 100%;
 }
 
-/* Clock — Figma: time container x=662/1512=43.78% from left, y=685, top=(685-66)/850=72.82% from wii-menu top */
+/* Clock sits above the bar's accent line, on the page background rather than
+   on the bar itself (context/components/bottom-bar-container.md). */
 .clock-above-bar {
   position: absolute;
-  top: 72.82%;
-  left: 43.78%;
+  top: 332px;
+  left: 354.6px;
   z-index: 2;
 }
 
-/* Navigation arrows */
+/* Page navigation — officially "blue scroll arrows" (Wii Operations Manual).
+   A disabled arrow is removed entirely rather than greyed, so page 1 shows only
+   the right arrow. */
 .nav-arrow {
   position: absolute;
   top: 50%;
@@ -88,7 +116,7 @@
 }
 
 .nav-arrow svg {
-  width: clamp(16px, 2.98vw, 45px);
+  width: 26px;
   height: auto;
 }
 
@@ -102,5 +130,5 @@
 }
 
 .nav-arrow-right {
-  right: 3.7%;
+  right: 30px;
 }
