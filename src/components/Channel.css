@@ -60,8 +60,17 @@
   overflow: hidden;
 }
 
-/* Gloss overlay */
-.channel-inner::before {
+/* Gloss overlay — POPULATED TILES ONLY.
+   This cannot exist on an empty slot. Populated tiles in reference_screen.png
+   contain pixels as dark as 21/255 inside the top 52%, and a 0.65-alpha white
+   overlay makes 166 the floor — so the layer as written is unsupportable there.
+
+   The Wii's system layout adds no gloss to a channel tile at all: each
+   channel's own banner art draws its own highlight, which is why populated
+   tiles look glossy and empty ones do not. An empty slot's gloss is the Ch1
+   ramp baked into the noise atlas — a fifth of the strength, and the opposite
+   shape (trough near the top, rising to the bottom). */
+.channel-inner:not(.channel-inner--empty)::before {
   content: '';
   position: absolute;
   top: 0;

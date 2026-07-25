@@ -28,34 +28,68 @@
   animation: snow-flicker 1001ms steps(1, end) infinite;
 }
 
-/* Layer 2 — fast vertical drift. One texture wrap per 6.673s (5 wraps per
-   33.366s console loop). */
-.channel-static__drift-fast {
+/* Layers 2 and 3 — the my_TV_d gratings: a 16x16 horizontal line pattern
+   (1 row on, 3 off) mapped at two scales via the pane's tex_coords.
+
+   These do NOT scroll the noise, which an earlier pass assumed. They are
+   separate rolling scanlines, and they are what makes an empty slot read as a
+   little TV screen rather than a flat noisy rectangle. Their combined sigma
+   roughly MATCHES the per-pixel grain (~0.95:1 structural); an earlier revision
+   drove that ratio to 0.25:1 on the theory that all banding was a capture
+   artifact. It is not — it is my_TV_d and my_TVSpe_a.
+
+   Bilinear filtering at 1.2 and 12 units per texel turns the square wave into a
+   triangle: peak at the bright texel centre, linear fall to zero at the next,
+   flat for two, rise again. Hence four stops.
+
+   Both roll DOWNWARD, measured off console footage — the opposite of what the
+   NW4R sign convention implies. Each extends one full period below the box so
+   translating down never exposes a gap; .channel-static clips the overhang, and
+   using transform keeps the roll on the compositor. */
+.channel-static__scan-fine,
+.channel-static__scan-coarse {
   position: absolute;
-  inset: 0;
-  background-size: 200% 400%;
-  background-repeat: repeat;
-  background-position-x: var(--snow-x, 0%);
-  image-rendering: pixelated;
-  /* Low opacity rather than a blend mode. `overlay` against mid-grey noise
-     darkens the tile badly (it drove grid SSIM negative when tried). */
-  opacity: 0.30;
-  animation: snow-drift 6673ms linear infinite;
-  animation-delay: var(--snow-drift-delay, 0ms);
+  left: 0;
+  right: 0;
+  top: 0;
+  pointer-events: none;
+  will-change: transform;
 }
 
-/* Layer 3 — slow drift, exactly 1/5 the speed. The beat between layers 2 and 3
-   is what stops the tile looking like a straight loop. */
-.channel-static__drift-slow {
-  position: absolute;
-  inset: 0;
-  background-size: 200% 400%;
-  background-repeat: repeat;
-  background-position-x: var(--snow-x, 0%);
-  image-rendering: pixelated;
-  opacity: 0.18;
-  animation: snow-drift 33366ms linear infinite;
-  animation-delay: var(--snow-drift-delay, 0ms);
+.channel-static__scan-fine {
+  height: calc(100% + 4.8px);
+  background: repeating-linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.19) 0px,
+    rgba(255, 255, 255, 0) 1.2px,
+    rgba(255, 255, 255, 0) 3.6px,
+    rgba(255, 255, 255, 0.19) 4.8px
+  );
+  animation: scan-roll-fine 1668ms linear infinite;
+  animation-delay: var(--scan-fine-delay, 0ms);
+}
+
+.channel-static__scan-coarse {
+  height: calc(100% + 48px);
+  background: repeating-linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.17) 0px,
+    rgba(255, 255, 255, 0) 12px,
+    rgba(255, 255, 255, 0) 36px,
+    rgba(255, 255, 255, 0.17) 48px
+  );
+  animation: scan-roll-coarse 8342ms linear infinite;
+  animation-delay: var(--scan-coarse-delay, 0ms);
+}
+
+@keyframes scan-roll-fine {
+  from { transform: translateY(-4.8px); }
+  to   { transform: translateY(0); }
+}
+
+@keyframes scan-roll-coarse {
+  from { transform: translateY(-48px); }
+  to   { transform: translateY(0); }
 }
 
 /* Nintendo's verbatim RLTP order: 0,1,2,3,0,2,1,0,3,1,2,0,1,2,3.
@@ -81,11 +115,6 @@
   100% { background-position-y: 0%; }
 }
 
-/* One full texture wrap. The atlas is 4 frames tall, so 400% is one wrap. */
-@keyframes snow-drift {
-  from { background-position-y: 0%; }
-  to { background-position-y: 400%; }
-}
 
 /* A grid of flickering high-frequency noise is a genuine photosensitivity and
    vestibular concern (WCAG 2.2.2, 2.3.1). Freeze every layer.
@@ -94,8 +123,8 @@
    contrast, so dimming would push it below visibility entirely. */
 @media (prefers-reduced-motion: reduce) {
   .channel-static__flicker,
-  .channel-static__drift-fast,
-  .channel-static__drift-slow {
+  .channel-static__scan-fine,
+  .channel-static__scan-coarse {
     animation: none;
   }
 }
@@ -105,17 +134,18 @@
    a watermark in the noise, not a logo. */
 .wii-wordmark {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 36%;
+  /* Centroid sits 3.5 units left of and 1.4 units below the plate centre. */
+  left: calc(50% - 3.5px);
+  top: calc(50% + 1.4px);
+  width: 25%; /* 40 of the aperture's 160 units */
   height: auto;
   transform: translate(-50%, -50%);
   color: #000;
-  /* -7/255 measured, but that figure comes from averaging FOUR empty tiles to
-     cancel their independent noise. In a single tile the wordmark is below the
-     noise floor and should not be legible. Halved to 0.014 so it reads as a
-     suggestion in the grain rather than a logo. */
-  opacity: 0.014;
+  /* Re-measured from the 4-frame mean of the real texture: ink depth -9.5/255
+     over #D4D4D4, i.e. 1.75x the per-tile grain sigma, so it IS faintly legible
+     in a single tile. The previous 0.014 was three times too faint and 36% wide
+     was 53% too wide. */
+  opacity: 0.045;
   pointer-events: none;
   z-index: 1;
 }

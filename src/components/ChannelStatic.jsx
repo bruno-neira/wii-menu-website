@@ -23,10 +23,11 @@ import './ChannelStatic.css'
 export default function ChannelStatic({ index = 0, frame }) {
   const { FRAMES } = NOISE_GEOMETRY
 
-  const { base, frozen } = useMemo(() => {
-    const vars = tileSeedVars(index)
+  const { base, vars, frozen } = useMemo(() => {
+    const seeded = tileSeedVars(index)
     return {
-      base: { backgroundImage: `url(${getNoiseAtlas()})`, ...vars },
+      vars: seeded,
+      base: { backgroundImage: `url(${getNoiseAtlas()})`, ...seeded },
       frozen:
         frame != null
           ? {
@@ -39,12 +40,11 @@ export default function ChannelStatic({ index = 0, frame }) {
 
   return (
     <div className="channel-static" aria-hidden="true">
-      {/* Order matters: the flicker is the opaque base. The drift layers sit
-          ON TOP and blend, approximating Nintendo's three TEV stages on one
-          quad. Put the flicker last and it occludes the drifts entirely. */}
+      {/* The flicker is the opaque base — it carries the baked Ch1 gloss ramp.
+          The two gratings are pure CSS gradients on top and take no atlas. */}
       <div className="channel-static__flicker" style={{ ...base, ...frozen }} />
-      <div className="channel-static__drift-fast" style={{ ...base, ...frozen }} />
-      <div className="channel-static__drift-slow" style={{ ...base, ...frozen }} />
+      <div className="channel-static__scan-fine" style={{ ...vars, ...frozen }} />
+      <div className="channel-static__scan-coarse" style={{ ...vars, ...frozen }} />
     </div>
   )
 }

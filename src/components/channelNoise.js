@@ -12,8 +12,10 @@
  * context/components/empty-slot-noise.md.
  */
 
-const FRAME_W = 170 // Nintendo's authored 16:9 icon canvas
-const FRAME_H = 96
+// Sized to the VISIBLE aperture, not the 170x96 plate, so one atlas texel maps
+// to exactly one layout unit and the grain is never rescaled.
+const FRAME_W = 160
+const FRAME_H = 88
 
 /**
  * Four frames — the exact count Nintendo shipped. The ripped "Empty Channel
@@ -29,19 +31,46 @@ const SEED = 0x57ee7
 /**
  * Contrast: the amplitude the noise is composited at over BASE.
  *
- * 0.047 is measured from the reference capture (the wordmark renders at -7/255
- * against a -150 delta in the source texture). The extracted layout's TEV
- * constant of (8,8,8) implies ~3.1%, so the true value sits somewhere in
- * 3-5% — either way it is deliberately subtle, and reads as "the tile is
- * faintly alive" rather than as snow.
- *
- * Raising this is the one documented divergence available. Everything else in
- * this file is authentic at any setting.
+ * 0.055, triangulated three ways: 0.048 from the reference capture's wordmark
+ * depth, 0.055 from booper's screenshot-derived asset, 0.067 from console
+ * footage. This is the console's real value, not a divergence — the noise is
+ * genuinely subtle. What makes an empty slot read as a little TV screen is the
+ * BAND structure (the gloss ramp and the two rolling gratings), not the grain.
  */
-export const SNOW_CONTRAST = 0.047
+export const SNOW_CONTRAST = 0.055
 
-const ROW_DC = 6 // faint scanline hint, ~1/4 of pixel amplitude
-const GRAIN_W = 2 // 2 texels wide x 1 tall ~= NTSC's 1.5:1 anisotropy
+/**
+ * Ch1 — the glass reflection ramp (`my_TVSpe_a`, an 8x96 I8 vertical gradient).
+ *
+ * Baked into the atlas per row rather than layered as a CSS gradient: a
+ * translucent overlay contributes alpha x (colour - base), so its amplitude
+ * would depend on whatever sits underneath. Baking makes the flicker layer
+ * opaque and exact, and costs nothing since the atlas is built once.
+ *
+ * Shape: bright at the very top edge, trough around 15-20% down, then a linear
+ * rise to the bottom. Total swing ~13/255 — about 2.4x the grain amplitude, so
+ * this is the dominant vertical structure, not a subtlety.
+ */
+function glossRamp(yNorm) {
+  const TOP = 6.5      // +6.5 at the top edge
+  const TROUGH = -7.0  // -7.0 at the trough
+  const BOTTOM = 5.5   // +5.5 at the bottom
+  const T = 0.17       // trough position
+  if (yNorm <= T) return TOP + (TROUGH - TOP) * (yNorm / T)
+  return TROUGH + (BOTTOM - TROUGH) * ((yNorm - T) / (1 - T))
+}
+
+/**
+ * Per-frame clipping. The four shipped frames are NOT identically distributed:
+ * F1's black floor is lifted and F3's white ceiling lowered, giving a 43/255
+ * spread in frame means. That is a slow luminance breath riding on the grain.
+ */
+const FRAME_CLIP = [
+  { lo: 0, hi: 255 },
+  { lo: 49, hi: 255 },
+  { lo: 0, hi: 255 },
+  { lo: 0, hi: 214 },
+]
 
 /**
  * The flicker order, verbatim from the brlan's RLTP track.
@@ -58,13 +87,15 @@ export const FLICKER_SEQUENCE = [0, 1, 2, 3, 0, 2, 1, 0, 3, 1, 2, 0, 1, 2, 3]
 export const FLICKER_DURATION_MS = 1001
 
 /**
- * Two superimposed vertical texture scrolls, both perfectly linear.
- * Five wraps and one wrap per 2000-frame (33.366s) loop respectively — the
- * slower is exactly 1/5 the speed of the faster, and their interference is the
- * only reason the loop is 2000 frames long rather than 60.
+ * The two `my_TV_d` gratings — a 16x16 horizontal line pattern (1 row on, 3
+ * off) mapped at two scales via the pane's tex_coords.
+ *
+ * These do NOT scroll the noise, which is what an earlier pass assumed. They
+ * are separate rolling scanlines, and they roll DOWNWARD — measured off console
+ * footage, against the NW4R sign convention that had been inferred.
  */
-export const DRIFT_FAST_MS = 6673
-export const DRIFT_SLOW_MS = 33366
+export const SCAN_FINE_MS = 1668 // 4.8-unit period
+export const SCAN_COARSE_MS = 8342 // 48-unit period
 
 function mulberry32(a) {
   return function () {
@@ -107,15 +138,21 @@ export function getNoiseAtlas() {
   const rnd = mulberry32(SEED)
 
   for (let y = 0; y < H; y++) {
-    const rowDc = (rnd() - 0.5) * 2 * ROW_DC
-    for (let x = 0; x < W; x += GRAIN_W) {
-      const n = sample(rnd)
-      let v = BASE + SNOW_CONTRAST * (n - TEXTURE_MEAN) + rowDc
+    const frame = Math.floor(y / FRAME_H)
+    const clip = FRAME_CLIP[frame] ?? FRAME_CLIP[0]
+    // Ramp is per-row within each frame, not across the whole atlas.
+    const ramp = glossRamp((y % FRAME_H) / (FRAME_H - 1))
+    for (let x = 0; x < W; x++) {
+      let n = sample(rnd)
+      n = n < clip.lo ? clip.lo : n > clip.hi ? clip.hi : n
+      // 1x1 grain: one texel per layout unit. The earlier 2x1 was an attempt to
+      // model NTSC's ~1.5:1 horizontal correlation, but that belongs to the
+      // capture chain, not to Nintendo's authored texture.
+      let v = BASE + SNOW_CONTRAST * (n - TEXTURE_MEAN) + ramp
       v = v < 0 ? 0 : v > 255 ? 255 : v | 0
       // R=G=B always. Analog snow is luminance-only: with no colour burst, a
       // receiver's colour-killer disables chroma entirely.
-      const word = 0xff000000 | (v << 16) | (v << 8) | v
-      for (let g = 0; g < GRAIN_W && x + g < W; g++) px[y * W + x + g] = word
+      px[y * W + x] = 0xff000000 | (v << 16) | (v << 8) | v
     }
   }
   ctx.putImageData(img, 0, 0)
@@ -131,10 +168,9 @@ export const NOISE_GEOMETRY = { FRAME_W, FRAME_H, FRAMES, COLS }
  * `System::getRndm()->get_u16() % 2000`
  * (reference/wii-ipl/src/scene/channelSelect/iplChannelObj.cpp:817).
  *
- * The extraction clarified what that randomisation is actually for: the flicker
- * is only 1s long and would look identical at any phase, so the random start
- * frame is really randomising the SCROLL phase across slots. Hence the delay is
- * applied to the drift layers.
+ * The flicker is only 1s long and looks identical at any phase, so what the
+ * console's randomisation actually varies is the GRATING phase. Hence the two
+ * scan delays.
  *
  * The static crop offset is ours, not Nintendo's — it survives Playwright
  * freezing the animations, so a frozen baseline still shows a decorrelated grid
@@ -143,7 +179,8 @@ export const NOISE_GEOMETRY = { FRAME_W, FRAME_H, FRAMES, COLS }
 export function tileSeedVars(index) {
   const rnd = mulberry32(SEED ^ ((index + 1) * 0x9e3779b9))
   return {
-    '--snow-drift-delay': `${(-rnd() * DRIFT_SLOW_MS).toFixed(0)}ms`,
     '--snow-x': `${(rnd() * 100).toFixed(2)}%`,
+    '--scan-fine-delay': `${(-rnd() * SCAN_FINE_MS).toFixed(0)}ms`,
+    '--scan-coarse-delay': `${(-rnd() * SCAN_COARSE_MS).toFixed(0)}ms`,
   }
 }
