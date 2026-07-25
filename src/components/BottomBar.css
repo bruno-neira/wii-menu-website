@@ -44,30 +44,26 @@
   position: absolute;
   /* Negative: the pill's top edge sits above the bar wrapper, reaching the
      clock's anchor height. This overhang is authentic, not a mistake. */
-  top: -10.2px;
-  height: 128px;
-  /* Rim-only: a soft edge around a nearly-empty interior. */
-  background: radial-gradient(
-    ellipse 100% 100% at 50% 50%,
-    rgba(255, 255, 255, 0.07) 0%,
-    rgba(255, 255, 255, 0.07) 62%,
-    rgba(255, 255, 255, 0.54) 100%
-  );
-  filter: drop-shadow(6px 6px 0 rgba(0, 0, 0, 0.251));
+  top: 10.7px;
+  height: 95.7px;
+  background: #d3d4db;
+  /* Hard offset silhouette, not a blur — the layout draws a complete second
+     copy of the pill at 25.1% black, offset (+6,+6). Scaled to stage units. */
+  filter: drop-shadow(3px 3px 0 rgba(0, 0, 0, 0.10));
   pointer-events: none;
 }
 
 /* Cap radius is 64 = half the 128 height, i.e. a true capsule. */
 .bar-left {
   left: 0;
-  width: 292.5px;
-  border-radius: 0 64px 64px 0;
+  width: 126.7px;
+  border-radius: 0 9999px 9999px 0;
 }
 
 .bar-right {
   right: 0;
-  width: 220.33px;
-  border-radius: 64px 0 0 64px;
+  width: 126.7px;
+  border-radius: 9999px 0 0 9999px;
 }
 
 /* Center area — left-aligned with clock at 43.78% of screen width; top=47.5% within bottom bar */
@@ -100,7 +96,7 @@
 .wii-button {
   position: absolute;
   left: 36.5px;
-  top: 26.4px;
+  top: 5.5px;
   height: 74.3px;
   aspect-ratio: 1;
   border-radius: 50%;
@@ -155,8 +151,8 @@
 /* Mail Button — positioned within bar-right */
 .mail-button {
   position: absolute;
-  left: 109.2px;
-  top: 25.4px;
+  left: 15.6px;
+  top: 4.5px;
   height: 76.7px;
   aspect-ratio: 1;
   border-radius: 50%;

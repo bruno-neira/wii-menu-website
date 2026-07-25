@@ -1,4 +1,5 @@
 import ChannelStatic from './ChannelStatic'
+import WiiWordmark from './WiiWordmark'
 import './Channel.css'
 
 export default function Channel({ children, index = 0 }) {
@@ -6,7 +7,12 @@ export default function Channel({ children, index = 0 }) {
   return (
     <div className="channel">
       <div className="channel-inner">
-        {isEmpty && <ChannelStatic index={index} />}
+        {isEmpty && (
+          <>
+            <ChannelStatic index={index} />
+            <WiiWordmark />
+          </>
+        )}
         {children}
       </div>
     </div>

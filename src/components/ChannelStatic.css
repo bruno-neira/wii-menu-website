@@ -37,7 +37,9 @@
   background-repeat: repeat;
   background-position-x: var(--snow-x, 0%);
   image-rendering: pixelated;
-  opacity: 0.5;
+  /* Low opacity rather than a blend mode. `overlay` against mid-grey noise
+     darkens the tile badly (it drove grid SSIM negative when tried). */
+  opacity: 0.30;
   animation: snow-drift 6673ms linear infinite;
   animation-delay: var(--snow-drift-delay, 0ms);
 }
@@ -51,7 +53,7 @@
   background-repeat: repeat;
   background-position-x: var(--snow-x, 0%);
   image-rendering: pixelated;
-  opacity: 0.35;
+  opacity: 0.18;
   animation: snow-drift 33366ms linear infinite;
   animation-delay: var(--snow-drift-delay, 0ms);
 }
@@ -97,3 +99,24 @@
     animation: none;
   }
 }
+
+/* The ghosted "Wii" wordmark. Measured at -7/255 below the local base, roughly
+   3% contrast, ~36% of tile width, centred. Deliberately near-invisible: it is
+   a watermark in the noise, not a logo. */
+.wii-wordmark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 36%;
+  height: auto;
+  transform: translate(-50%, -50%);
+  color: #000;
+  /* -7/255 measured, but that figure comes from averaging FOUR empty tiles to
+     cancel their independent noise. In a single tile the wordmark is below the
+     noise floor and should not be legible. Halved to 0.014 so it reads as a
+     suggestion in the grain rather than a logo. */
+  opacity: 0.014;
+  pointer-events: none;
+  z-index: 1;
+}
+

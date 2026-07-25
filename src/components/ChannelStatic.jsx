@@ -39,9 +39,12 @@ export default function ChannelStatic({ index = 0, frame }) {
 
   return (
     <div className="channel-static" aria-hidden="true">
-      <div className="channel-static__drift-slow" style={{ ...base, ...frozen }} />
-      <div className="channel-static__drift-fast" style={{ ...base, ...frozen }} />
+      {/* Order matters: the flicker is the opaque base. The drift layers sit
+          ON TOP and blend, approximating Nintendo's three TEV stages on one
+          quad. Put the flicker last and it occludes the drifts entirely. */}
       <div className="channel-static__flicker" style={{ ...base, ...frozen }} />
+      <div className="channel-static__drift-fast" style={{ ...base, ...frozen }} />
+      <div className="channel-static__drift-slow" style={{ ...base, ...frozen }} />
     </div>
   )
 }
