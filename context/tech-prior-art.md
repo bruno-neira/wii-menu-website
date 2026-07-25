@@ -80,6 +80,10 @@ Ordered by usefulness to this project.
 
 Legend: ✅ matches ground truth · ❌ contradicts it · ⚠️ legal risk.
 
+This table covers GitHub only. **The non-GitHub prior art is larger and in one case better —
+see §5b** for the USBLoaderGX theming thread (the single most useful non-code source found),
+the Scratch corpus, ~9,600 Wallpaper Engine wallpapers, itch.io, and live web demos.
+
 ---
 
 ## 2. The single most valuable prior art: `booper1/Wii-UI`
@@ -1216,9 +1220,16 @@ Ranked by how many projects commit them.
 - **Zoom architecture:** booper1's counter-transformed overlay (scale the stage up, scale the
   content inversely down) is the correct structure for the decomp's §3.4 crossfade. joogps's
   `matchedGeometryEffect` is the same idea natively; on the web, **FLIP** is the name for it.
+- **CRT/squircle screen border:** `wii.dupa.gay` does it with an **SVG `clip-path`**, and gets
+  the wave-like screen sheen from *staggered opacity delays* rather than a video or GIF.
+- **Asset ownership:** don't ship channel art at all. `bubbaboogs/Wii Launcher` (itch.io) and
+  USBLoaderGX both make the **user** supply it — the latter reads the empty-channel texture off
+  the console's own NAND at runtime. Web equivalent: drag-and-drop into a slot, persist to
+  `localStorage`. Legally clean *and* a better portfolio product.
 - **Third-party asset hygiene:** kxtzownsu's `NoA_`-prefix + single-directory quarantine +
-  README disclosure.
-- **Self-documentation:** Wii.JS's *Known Issues* list. Write one.
+  README disclosure. And WM4K's `DISCLAIMER.txt` for wording.
+- **Self-documentation:** Wii.JS's *Known Issues* list, and jwmu's engine-limitations list.
+  Write one.
 
 ---
 

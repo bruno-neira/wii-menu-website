@@ -24,7 +24,8 @@ coding exists (§4.3).
 | Tag | Meaning | Sources used here |
 |---|---|---|
 | **[Decomp — code evidence]** | Fan decompilation of Nintendo's *actual* System Menu 4.3 binary. Symbol-for-symbol Nintendo logic. Strongest behavioural source available. | `koopthekoopa/wii-ipl` — https://github.com/koopthekoopa/wii-ipl <br>Key files: `include/system/iplPointer.h`, `src/system/iplPointer.cpp`, `src/system/iplPointerCore.cpp`, `src/system/iplController.cpp`, `include/system/iplController.h`, `src/utility/iplUtility.cpp`, `src/system/iplSystem.cpp`, `src/homebutton/HBMBase.cpp`, `include/sound/IplSound.rsid` |
-| **[Asset — measured]** | Direct pixel measurement of the **ripped cursor texture atlas** from the real console. Objective. | *Pointer* sheet, Wii Menu, The Spriters Resource: https://www.spriters-resource.com/wii/wiimenu/asset/167191/ (image: `https://www.spriters-resource.com/media/assets/164/167191.png`, 129 × 259 RGBA PNG). Measured with PIL during this research pass. |
+| **[Decomp — layout evidence]** | **Decompiled retail `.brlyt` layout binaries** — the actual pane geometry, material state and colour registers Nintendo authored. Added in the second pass; **strictly stronger than the sprite rip for anything involving colour, size or offset.** | `mkwcat/starling` — https://github.com/mkwcat/starling/tree/master/assets/blyt <br>`P1_Def.brlyt.json5` … `P4_Def.brlyt.json5` (P1/P2/P4 fetched and verified directly during this pass). **Covers `_Def` only** — no `_Cat`, no `my_BScroll_a`. |
+| **[Asset — measured]** | Direct pixel measurement of the **ripped cursor texture atlas** from the real console. Objective about *shape*; **silent about colour** — see the caveat below. | *Pointer* sheet, Wii Menu, The Spriters Resource: https://www.spriters-resource.com/wii/wiimenu/asset/167191/ (image: `https://www.spriters-resource.com/media/assets/164/167191.png`, 129 × 259 RGBA PNG). Measured with PIL and, in the second pass, re-measured in-browser via canvas. |
 | **[Official]** | Nintendo-authored | Nintendo Support — "Cursor is off-centre, jerky, erratic, disappears": https://www.nintendo.com/en-gb/Support/Wii/Troubleshooting/Wii-Remote-Controllers-amp-Sensor-Bar/Cursor-is-off-centre-jerky-erratic-disappears-etc-/Cursor-is-off-centre-jerky-erratic-disappears-etc-244285.html |
 | **[Official/MDN]** | MDN, W3C specs, and browser-engine source | **Specs:** MDN [`cursor`](https://developer.mozilla.org/en-US/docs/Web/CSS/cursor) · [css-ui-4 §cursor](https://www.w3.org/TR/css-ui-4/#cursor) · MDN BCD [`css/properties/cursor.json`](https://github.com/mdn/browser-compat-data/blob/main/css/properties/cursor.json)<br>**Engine source:** Chromium [`ui/base/cursor/cursor.cc`](https://source.chromium.org/chromium/chromium/src/+/main:ui/base/cursor/cursor.cc;l=93) and [`blink/.../event_handler.cc`](https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/renderer/core/input/event_handler.cc;l=261) · WebKit [`Source/WebCore/page/EventHandler.cpp`](https://github.com/WebKit/WebKit/blob/main/Source/WebCore/page/EventHandler.cpp#L220) · Gecko [`StaticPrefList.yaml`](https://searchfox.org/mozilla-central/source/modules/libpref/init/StaticPrefList.yaml#11403) and [`EventStateManager.cpp`](https://searchfox.org/mozilla-central/source/dom/events/EventStateManager.cpp#4866)<br>**APIs:** [`pointerrawupdate`](https://developer.mozilla.org/en-US/docs/Web/API/Element/pointerrawupdate_event) · [`getCoalescedEvents()`](https://developer.mozilla.org/en-US/docs/Web/API/PointerEvent/getCoalescedEvents) · [`@media (pointer)`](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/pointer) · [`forced-colors`](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/forced-colors) · [`prefers-reduced-motion`](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-reduced-motion) · [Pointer Lock](https://developer.mozilla.org/en-US/docs/Web/API/Pointer_Lock_API)<br>**A11y:** [WCAG 2.2 SC 2.5.8](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html) · [SC 1.4.11](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html) · [W3C Low Vision Needs](https://www.w3.org/TR/low-vision-needs/) · [Windows](https://support.microsoft.com/en-us/windows/make-windows-easier-to-see-c97c2b0d-cadb-93f0-5fd1-59ccfe19345d) / [macOS](https://support.apple.com/guide/mac-help/change-pointer-display-settings-accessibility-mchl0ec8ce69/mac) pointer settings<br>**Perf:** [web.dev Animations guide](https://web.dev/articles/animations-guide) · **Security rationale:** [CVE-2019-11695 / Mozilla bug 1445844](https://bugzilla.mozilla.org/show_bug.cgi?id=1445844) |
 | **[Fan/community]** | Wikis, cursor packs | WiiBrew — Wiimote/Pointing: https://wiibrew.org/wiki/Wiimote/Pointing |
@@ -36,10 +37,19 @@ coding exists (§4.3).
 > the fingertip" is inference (§6.3). The repo is also explicitly WIP and some functions are marked
 > `// non-matching`, so treat exact float constants as *very likely* rather than *proven*.
 >
-> **Standing caveat about the sprite sheet.** It is a community rip, not an official release. Its
-> internal consistency with the decomp (exactly two hand poses, exactly four numerals, a separate
-> shadow silhouette pair — matching `P*_Def` / `P*_Cat` / `N_SRot`) is strong mutual corroboration,
-> but a rip can still contain flattening artefacts. Where I reconstructed the composite (§4.2) I say so.
+> **Standing caveat about the sprite sheet — and it burned this document once already.** It is a
+> community rip, not an official release. Its internal consistency with the decomp (exactly two hand
+> poses, exactly four numerals, a separate shadow silhouette pair — matching `P*_Def` / `P*_Cat` /
+> `N_SRot`) is strong mutual corroboration for *structure*.
+>
+> **But a texture rip cannot contain material state.** The Wii composites textures through GX TEV
+> stages with colour registers, and those registers live in the `.brlyt`, not the `.tpl`. The first
+> pass measured the atlas correctly, found it entirely achromatic, and concluded the cursor has no
+> per-player colours. **That conclusion was wrong** — the greyscale plates are *tint masks* and the
+> colour comes from `tev color 0` (§4.2, §4.3). Two more first-pass figures moved for the same
+> reason: the texture is drawn at **0.84** scale (§8) and the shadow has exact recovered values (§3.4).
+>
+> **Rule going forward: for shape, trust the rip. For colour, size or offset, trust the layout binary.**
 >
 > **The decomp is cloned locally.** Every `src/...` / `include/...` path in this document resolves
 > under `reference/wii-ipl/` in this repository. **Read it from disk** — it is faster and more
@@ -1112,6 +1122,39 @@ single-cursor web clone.
 build it, the parameters above (±0.01 dead zone, `10·Δy²` speed, arrow saturating at ~0.28 of a
 screen height, tick every 128 units of travel, no inertia) are the whole thing.
 
+### 7.3 What the arrow *looks like* is genuinely unknown — a confirmed dead end
+
+Stated plainly so nobody spends another research pass on it. **Its behaviour is fully recovered
+(§7.1); its appearance is not, and I am not going to guess at it.**
+
+Exhaustively searched during the second pass, all negative:
+
+- A web search for **`my_BScroll` returns literally zero results** — no forum post, no wiki page, no
+  video description, no texture rip.
+- **Not on The Spriters Resource.** The "Buttons & Miscellaneous" sheet
+  (https://www.spriters-resource.com/wii/wiimenu/asset/68370/) was opened and inspected directly: it
+  has the +/− buttons and the small blue page-turn triangles, **but no B-scroll arrow**.
+- **`mkwcat/starling` decompiled only the `_Def` layouts**, not `my_BScroll_a`.
+- **ThemeMii's `cursor.ash` template deliberately omits `my_BScroll_a.brlyt`** — it exposes 8 of the 9
+  layouts. **[Inferred]** This is almost certainly *why* it is undocumented: the theme-modding
+  community, which is the source of nearly all Wii asset knowledge, never had a handle on it.
+
+**What is known about its form**, purely from the pane manipulation in `Pointer::calc()` (§7):
+
+- Three panes: `BArwBase` (the anchor marker), `N_BArw` (arrow root), `W_BArw` (the stretchy body —
+  its `size.height` is what grows).
+- **One graphic serves both directions.** Up vs down is `SetScale(VEC2(1.0f, ±1.0f))` — a **vertical
+  mirror, not a rotation** — so the artwork must be symmetric about its horizontal axis in a way that
+  survives flipping.
+- Only `size.height` is ever written, so **the arrow stretches along one axis only**; a nine-slice or
+  a stretchable middle segment is implied, not a uniformly scaled sprite.
+- Two-phase visibility: anchor dot alone before movement, arrow alone once scrolling.
+
+**[Inferred] If you build it,** the honest move is to draw something plausible in the Wii's visual
+language (white fill, heavy black outline, soft shadow — matching the hand) and **label it in your own
+notes as an invention**, exactly as §5.4 does for the press animation. Do not present it as
+recovered.
+
 ---
 
 ## 8. Size on screen
@@ -1381,12 +1424,44 @@ almost certainly the intent (a slow, careful reposition should be quiet).
 
 ## 11. Asset availability (and why you should still draw your own)
 
-| Source | What's there | Notes |
+| Source | Licence | What's there | Notes |
+|---|---|---|---|
+| ⭐ **`mkwcat/starling` — decompiled retail BRLYTs** <br>https://github.com/mkwcat/starling/tree/master/assets/blyt | GPL-2.0 (code) — the TPLs are extracted Nintendo art | `P1_Def.brlyt.json5` … `P4_Def.brlyt.json5`: the **actual retail layout geometry, materials and colours** in readable JSON5 | **The single best source in this table, and new to the second pass.** It supplied the 640 × 480 canvas, the `N_Trans → {N_SRot, N_Rot}` chain, the 54 × 54 quad at (+8, −20), the (+3, −3) / 35 % shadow, and the four player hexes. **Read it as spec; do not ship the art.** Only `_Def` was decompiled — no `_Cat`, no `my_BScroll_a`. |
+| ⭐ **`koopthekoopa/wii-ipl`** <br>https://github.com/koopthekoopa/wii-ipl | **CC0-1.0** | **No assets at all** — README states it "does **not** contain any assets or assembly of the executable whatsoever" | Code/behaviour only, which is what makes it safe to cite freely. Cloned locally at `reference/wii-ipl/`. |
+| **The Spriters Resource — Wii Menu → "Pointer"** <br>https://www.spriters-resource.com/wii/wiimenu/asset/167191/ | Nintendo art, unlicensed rip | The ripped atlas: 2 hand poses + 2 shadow silhouettes + 4 numeral plates, 129 × 259 PNG | Best *artwork* reference. Direct image: `.../media/assets/164/167191.png`. **403s bare fetchers — a browser `User-Agent` gets through.** ⚠️ **The numeral plates are stored with inverted alpha** (opaque plate, digit punched out) *and* are tint masks, not final art (§4.2) — invert and tint before comparing. |
+| ⭐ **WiiBrew "Wii Homebrew Cursors"** <br>https://wiibrew.org/wiki/Wii_Homebrew_Cursors | **PUBLIC DOMAIN** (author's grant on the page, June 2010, supersedes the LGPL note in the bundled readme) | 96 × 96 alpha PNGs on the same 640 × 480 canvas: pointer, drag, open hand, **per-player 1–4 variants**, a **B-button cursor**, and shadows for every type | **The only genuinely licence-clean set.** File: `https://wiibrew.org/w/images/1/1d/Wii_homebrew_cursors_1.1a.rar`. ⚠️ **Its hotspot is the centre (48,48) and it rotates about the centre — the retail cursor does neither** (§6.3). Do not inherit its pivot. |
+| **Dolphin "WM4K" 4K texture pack** <br>https://github.com/Alan-bur/WM4K | **No LICENSE file** | Upscaled Wii Menu textures, ~1 GB. Pointer at `0000000100000002/USA/Pointer` — exactly 7 files at 64 × 64, matching the 7 non-shadow TPLs in `cursor.ash` | Useful for seeing the shapes at high resolution. Predecessor thread: https://forums.dolphin-emu.org/Thread-hd-wii-menu-texture-pack . The Dolphin *wiki* custom-texture pages now 404; current guide: https://forums.dolphin-emu.org/Thread-how-to-install-texture-packs-custom-textures-info |
+| **PrimmR — Wii Pointer Cursors** <br>https://primmr.dev/projects/wii-pointer-cursors/ | ⚠️ **None stated** — treat as all-rights-reserved | High-quality vector recreation, all four colourways, SVGs offered | Independently corroborated the player hexes to ±1 per channel (§4.3). "Credit would be appreciated" is a request, not a grant, and there is no repo or LICENSE. **Permission is probably obtainable by asking** — worth doing if you want a shortcut. |
+| **Theme tooling** <br>ThemeMii https://wiibrew.org/wiki/ThemeMii · CustomizeMii https://wiibrew.org/wiki/CustomizeMii · MyMenuify https://wiibrew.org/wiki/MyMenuify | — | Tools that repack `cursor.ash` | Confirmed the archive path `/layout/common/cursor.ash` (ASH|U8, root `arc/` with `arc/blyt/` + `arc/timg/`) and the TPL names. **ThemeMii's template exposes only 8 of the 9 layouts — it deliberately omits `my_BScroll_a.brlyt`**, which is why that widget is undocumented everywhere (§7). |
+| **Real themes that retexture the cursor** <br>https://github.com/4rft5/WiiDarkTheme · https://github.com/emilydaemon/synthwiive_theme | Unlicense (synthwiive) | Working examples of a replaced `cursor.ash` | Useful if you want to see what the layout tolerates. |
+| **rw-designer / custom-cursor.com** <br>https://www.rw-designer.com/cursor-set/wii-cursor-by-stefano-tinaglia · https://custom-cursor.com/en/collection/games/nintendo-wii-hand | Unclear | Fan `.cur`/`.ani` packs | Fan redraws of varying accuracy; the "idle/busy variants" they list are Windows cursor-role conventions, **not** Wii states. Do not treat their state list as evidence about the Wii. |
+
+**Dead ends, recorded so nobody re-searches them:** The Textures Resource has a Wii Menu page but
+reports **"Assets 0"**. **Wikimedia Commons has no Wii pointer at all.** There is **no open-licensed
+Wii pointer SVG on GitHub**. There is **no WiiBrew page for `cursor.ash`**. A search for
+`my_BScroll` returns **literally zero results** anywhere on the web.
+
+### 11.1 Existing web recreations — nobody has built this properly
+
+**[Fan/community]** Surveyed during the second pass. **None** uses SVG, **none** has a separate shadow
+layer, **none** renders the player numeral, **none** has the B-scroll arrow, and only one rotates:
+
+| Project | Technique | Rotation |
 |---|---|---|
-| **The Spriters Resource — Wii Menu → "Pointer"** <br>https://www.spriters-resource.com/wii/wiimenu/asset/167191/ | The genuine ripped atlas: 2 hand poses + 2 shadow silhouettes + 4 numeral overlays, 129 × 259 PNG | The best reference. Direct image: `https://www.spriters-resource.com/media/assets/164/167191.png` (needs a normal browser `User-Agent`; the site 403s bare fetchers). The whole Wii Menu category is at https://www.spriters-resource.com/wii/wiimenu/ |
-| **`koopthekoopa/wii-ipl`** <br>https://github.com/koopthekoopa/wii-ipl | **No assets at all** — README states it "does **not** contain any assets or assembly of the executable whatsoever" | Code/behaviour only. Which is what makes it safe to cite freely. |
-| **Wii Pointer Cursors (primmr)** <br>https://primmr.dev/projects/wii-pointer-cursors/ | Desktop cursor pack | Cited in `animations-interactions.md`; the site refused connection during this pass — unverified. |
-| **rw-designer / custom-cursor.com** <br>https://www.rw-designer.com/cursor-set/wii-cursor-by-stefano-tinaglia · https://custom-cursor.com/en/collection/games/nintendo-wii-hand | Fan `.cur`/`.ani` packs | Fan redraws of varying accuracy; the "idle/busy variants" they list are Windows cursor-role conventions, **not** Wii states. Do not treat their state list as evidence about the Wii. |
+| [wii.dupa.gay](https://wii.dupa.gay/) ([write-up](https://dupa.gay/blog/2025-03-12-0)) | DOM follower, `position: fixed`, PNG hotlinked from archive.org | **Yes — but from mouse velocity, not roll:** `atan2(j,k)*(180/π)*0.3`, lerped 0.1/frame. Also fakes IR latency by hit-testing the *delayed* point. |
+| [rekky1aws/wii-menu-recreation](https://github.com/rekky1aws/wii-menu-recreation) | DOM follower, `<img>` at `e.x+5, e.y+5`; **3 PNG states** swapped on hover + mousedown | No |
+| [andrewplus/Wii.JS](https://github.com/andrewplus/Wii.JS) | Native `cursor: url(cursor.png), auto`; shadow baked into the PNG | **Impossible** — README even notes shadow-transparency bugs |
+| [danintosh/Wii-Menu-HTML](https://github.com/danintosh/Wii-Menu-HTML) | `cursor: url()` at 7 selectors | No |
+
+Checked and found to have no cursor at all: `cornetespoir/wii-menu-page`, `booper1/Wii-UI`,
+`M4rc3lv/WiiMenu`.
+
+**[Inferred] Two things to take from this.** (1) The `cursor: url()` projects are the ones with no
+rotation and no layered shadow — **direct empirical support for §12.3's recommendation**. (2)
+`wii.dupa.gay` independently arrived at *velocity-driven rotation* (§12.4 Option 2) and at
+*deliberately lagging the hit-test*. The rotation is an invention (§12.4); **the lagged hit-test is
+actively wrong** — the console hit-tests the true pointer position, not the drawn one (§6.1d). Do not
+copy that part.
 
 > **Recommendation — draw your own SVG.** The shape is simple (one fist outline, one finger, one
 > numeral, one gradient) and §3 gives you every measurement needed to redraw it faithfully. Shipping
@@ -2089,10 +2164,13 @@ import { useEffect, useRef, useState } from 'react';
 import './WiiCursor.css';
 
 // Measured from the real Wii Menu cursor texture — see context/components/cursor.md §3, §8.
-const ART_W = 43;          // artwork width  (layout units)
-const ART_H = 62;          // artwork height (layout units)
-const HOTSPOT_X = 12.5;    // fingertip, in artwork units
+const ART_W = 43;          // artwork width,  TEXTURE px (§3.1)
+const ART_H = 62;          // artwork height, TEXTURE px  — CSS scales this to 10.5vh (§8)
+const HOTSPOT_X = 12.5;    // fingertip, in artwork units — also the rotation pivot (§6.3)
 const HOTSPOT_Y = 0;
+
+// tev color 0 from the decompiled retail P{n}_Def.brlyt (§4.3).
+const PLAYER_COLOR = ['#008CFF', '#FF3838', '#10BD0D', '#FF9C00'];
 const REST_TILT_DEG = 15;  // Nintendo's own no-roll-data fallback (Classic::getHorizon)
 
 // Dragging-circle smoothing (WiiBrew). r in px, k per-frame ease inside the circle.

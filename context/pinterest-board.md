@@ -22,6 +22,13 @@ This is the project owner's own curated visual reference board, not third-party 
 
 **Homebrew / fan recreations (2 pins) — reference for alternate takes, not canonical**
 - **"Wii Menu+"** — a grayscale reinterpretation of the menu with a `9:49 AM Fri 7/21` clock overlay.
+
+  > **⚠️ SUPERSEDED (2026-07-25):** A project by this name **appears not to exist**. The prior-art
+  > survey (`context/tech-prior-art.md`) could not find it and concluded the pin title is most
+  > likely a mis-tokenisation of a Wallpaper Engine item, `"$uicideboy$ Dark Wii Menu+Button
+  > shortcuts"`. Treat this entry as a cataloguing error by this doc, not as a real project.
+  > The "Wii Menu (Beta 1.0)" Scratch project below is also undiscoverable beyond a single
+  > YouTube video. Evidence tier: prior-art survey.
 - **"Wii Menu (Beta 1.0)"** — a Scratch (MIT, block-coding platform) project recreation dated `Sunday 2/25/24`, using a purple-tinted bottom bar instead of the original blue/white — shows how another hobbyist reinterpreted the palette.
 
 **Aesthetic touchstone**
