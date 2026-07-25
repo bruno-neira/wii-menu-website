@@ -3,3 +3,6 @@ dist
 .DS_Store
 *.local
 reference/
+test-results/
+playwright-report/
+tests/visual/ratchet-output/
