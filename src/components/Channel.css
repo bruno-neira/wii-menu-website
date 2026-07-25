@@ -2,8 +2,7 @@
   position: relative;
   /* Figma-derived dimensions: 306.91 × 169.06px */
   aspect-ratio: 307 / 169;
-  /* CRT-curved shape — clip-path defined in App.jsx SVG defs */
-  clip-path: url(#crt-clip);
+  border-radius: 10% / 18%;
   background: #b8bfc8;
   cursor: pointer;
   transition: transform 0.1s ease;
@@ -17,12 +16,10 @@
   opacity: 0.3;
 }
 
-/* Percentage inset so bezel always exceeds the clip-path side bow (2.1% h / 1.18% w)
-   at every screen size. border-radius matches clip-path corner at this inset depth. */
 .channel-inner {
   position: absolute;
   inset: 2.5% 1.5%;
-  border-radius: 4.5% / 8.5%;
+  border-radius: 8% / 15%;
   background: #d8dadc;
   display: flex;
   align-items: center;
