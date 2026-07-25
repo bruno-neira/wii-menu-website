@@ -51,12 +51,21 @@
   z-index: 0;
 }
 
-/* Channel grid area.
-   Nintendo's grid pitch is the icon authoring canvas: 170x96 per cell in the
-   16:9 space, with the visible tile 160x88 and the clipped ring forming the
-   gutter. The values below preserve the pre-refactor rendered geometry; the
-   pitch is already within ~1px of Nintendo's, but the tile/gutter split is not
-   (see context/components/channel-tile.md) and is corrected in Phase 2. */
+/* Channel grid.
+   Nintendo's slot pitch IS the icon authoring canvas — 170x96 in the 16:9
+   space — and at the pane level there is ZERO gutter: slot pitch equals slot
+   box exactly (context/brlan-extraction.md §10.1). The visible 10px/8px gutter
+   is the clipped transparent ring baked into each tile's own texture, not a
+   gap between layout nodes.
+
+   Expressed here as an explicit 160x88 tile plus a 10/8 gap, which sums to the
+   same 170x96 pitch. The previous values had the right pitch but the wrong
+   split (164.5 tile / 6.35 gutter), making tiles too fat and gutters too tight.
+
+   The grid block spans x [-340,+340] in the 832-wide space, so it starts 76px
+   from the left edge. Deliberately NOT centred: the block overflows to the
+   right so a fifth column peeks past the screen edge, which is the layout-level
+   cause of the partial column visible in every real screenshot. */
 .channels-area {
   position: absolute;
   top: 37.6px;
@@ -65,17 +74,16 @@
   bottom: 137.3px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 0 68.2px;
+  justify-content: flex-start;
+  padding: 0 0 0 76px;
   z-index: 1;
 }
 
 .channels-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  column-gap: 6.52px;
-  row-gap: 5.19px;
-  width: 100%;
+  grid-template-columns: repeat(4, 160px);
+  column-gap: 10px;
+  row-gap: 8px;
 }
 
 /* Clock sits above the bar's accent line, on the page background rather than

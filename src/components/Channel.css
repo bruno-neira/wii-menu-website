@@ -1,7 +1,8 @@
 .channel {
   position: relative;
-  /* Figma-derived dimensions: 306.91 × 169.06px */
-  aspect-ratio: 307 / 169;
+  /* Nintendo's visible aperture in the 16:9 space: 160x88 of a 170x96 cell.
+     Note this is not 16:9 either — the tile is 1.818:1. */
+  aspect-ratio: 160 / 88;
   border-radius: 10% / 11%;
   background: #b8bfc8;
   cursor: pointer;
