@@ -16,54 +16,126 @@
 }
 
 /* The corner "half-pill" platforms the Wii and Message Board buttons sit on.
-   Extracted from my_IplTop_e.brlyt (context/brlan-extraction.md §8).
+   Nintendo's construction, built as they build it (my_IplTop_e.brlyt, plus the
+   measurements in components/bottom-bar-half-pills.md ADDENDUM 2026-07-30).
 
-   Three findings from the layout that the earlier screenshot analysis missed:
+   The pill is TWO copies of one capsule alpha mask:
 
-   1. The two pills are DIFFERENT widths. Both are three-slice capsules with
-      64-wide caps, but the centre slice is 92 on the right and 164 on the left
-      (the left cluster also hosts Calendar/Add on the Message Board screen).
-      Earlier research measured them as symmetric to within 1px; the layout says
-      otherwise.
-   2. Height is 128, spanning y in [-220, -92] — so the pill HANGS HIGH and its
-      top edge pokes out above the bar, reaching exactly the clock's anchor
-      height. It is not vertically centred in the bar.
-   3. They carry a hard drop shadow: a complete second copy of the pill offset
-      (+6, +6) at 25.1% black. Not a blur — an offset silhouette.
+     plate  — near-white, a thin rim around an almost empty interior. An
+              outline, not a plate: the texture's max alpha anywhere is well
+              under half.
+     shadow — the SAME mask, material-tinted BLACK at alpha 0.251, offset
+              (+6,+6). A hard offset copy, not a blur.
 
-   The material tint is plain white with no alpha reduction, so all of the
-   pill's translucency comes from the texture's own alpha channel. That
-   independently confirms the rim-and-faint-interior reading measured from the
-   texture rip, and is why this is a translucent fill rather than the solid
-   #d3d4db plate it used to be.
+   Why this matters, and why the old flat `background: #d3d4db` read wrong:
+   because one copy is near-white and the other is black, one alpha mask yields
+   hugely asymmetric results over a ~210 bar. A near-white rim can only brighten
+   by alpha*(rim - bar), a dozen levels of headroom; the black copy darkens by
+   alpha*0.251*bar. Roughly 4x the leverage from the same mask. That asymmetry
+   IS the "railing" — a bright lip with a much stronger dark edge riding just
+   outside it — plus the inner recess on the plate below.
+
+   Composited rather than pre-computed on purpose: the correct effect changes
+   sign down the pill (it brightens against the dark upper bar and goes
+   near-neutral against the light lower bar), which a baked hex cannot do.
 
    Decorative only: the decomp registers hit boxes on the named button panes
    (B_Set, B_Bbs, B_Ch), never on the pill, so pointer-events stays off. */
 .bar-left,
 .bar-right {
   position: absolute;
-  /* Negative: the pill's top edge sits above the bar wrapper, reaching the
-     clock's anchor height. This overhang is authentic, not a mistake. */
-  top: 10.7px;
-  height: 95.7px;
-  background: #d3d4db;
-  /* Hard offset silhouette, not a blur — the layout draws a complete second
-     copy of the pill at 25.1% black, offset (+6,+6). Scaled to stage units. */
-  filter: drop-shadow(3px 3px 0 rgba(0, 0, 0, 0.10));
+  /* Measured: top edge 337.4 of 456, i.e. 6.8 BELOW the cyan contour. An
+     earlier note had it poking above the bar; that came from the layout's
+     128-unit pane height. The pane is 128, the capsule inside it is 92. */
+  top: 7.2px;
+  /* 120.4 of visible capsule + 12px pushed off-screen. The console's capsule
+     runs off the frame and is clipped by it (§6: the tone at x=0 is identical
+     to x=20 — there is no vertical stroke closing the shape), and the texture's
+     flat end sits exactly on its own boundary for edge clamping (§4a). Letting
+     the stage's overflow:hidden do the clipping keeps the edge-side borders and
+     the recess vignette off-screen instead of drawing a rectangle.
+
+     12 and not 4: the shadow copy is translated +6px, which pushes ITS edge
+     border back onto the screen as a stray vertical line. The overhang has to
+     clear the offset as well as the border. */
+  width: 132.4px;
+  height: 92px;
   pointer-events: none;
 }
 
-/* Cap radius is 64 = half the 128 height, i.e. a true capsule. */
-.bar-left {
-  left: 0;
-  width: 130.1px;
+.bar-left { left: -12px; }
+.bar-right { right: -12px; }
+
+/* Two pseudo-elements so the shadow can sit BEHIND the plate while the real
+   button, a DOM child, still paints above both. Giving the element itself a
+   background would force the shadow above it. */
+.bar-left::before,
+.bar-left::after,
+.bar-right::before,
+.bar-right::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  /* Cap radius = 46 = half the 92 height: a true capsule, and circular in
+     stage px (the texture is drawn 1 texel = 1 stage px vertically). */
+  border-width: 2px;
+  border-style: solid;
+  /* Without this the background also paints UNDER the border, so the rim
+     composites both alphas: the shadow rim measured -21.9 against the
+     console's -17.0 until this line existed. The rim and the interior are two
+     separate alphas in the texture and must stay separate here. */
+  background-clip: padding-box;
+}
+
+.bar-left::before,
+.bar-left::after {
   border-radius: 0 9999px 9999px 0;
 }
 
-.bar-right {
-  right: 0;
-  width: 130.1px;
+.bar-right::before,
+.bar-right::after {
   border-radius: 9999px 0 0 9999px;
+}
+
+/* The shadow copy. Offset down-and-right on BOTH pills — it is applied in
+   absolute screen direction, not mirrored, which is why the left pill shows a
+   dark crescent outside its cap and the right pill shows none. That one-sided
+   signature is the measurement that proved this is a shadow at all. */
+.bar-left::before,
+.bar-right::before {
+  transform: translate(6px, 6px);
+  border-color: rgba(0, 0, 0, 0.082);
+  /* background-color, NOT the `background` shorthand: the shorthand resets
+     background-clip back to border-box and silently re-merges the rim and
+     interior alphas that the clip above exists to keep apart. */
+  background-color: rgba(0, 0, 0, 0.018);
+}
+
+/* The plate.
+
+   Fitted, not assumed. A single alpha mask at WM4K's rim value (0.537 over
+   RGB 222) reproduces the shadow correctly but makes the bright lip roughly
+   twice too strong where the bar is dark, because brightening scales with
+   (rim - bar) and the bar runs ~185 at the pill's top and ~210 at its cap.
+   Solving both measured points instead gives a LIGHTER rim at LOWER alpha:
+
+     0.09 * (252 - 185) = +6.0   (console +5.7)
+     0.09 * (252 - 210) = +3.8   (console +3.3 .. +4.6)
+
+   Read as evidence that the real texture's rim is closer to white and thinner
+   in alpha than WM4K's hand redraw implies -- consistent with WM4K being
+   structure-tier evidence only, the same conclusion the button work reached. */
+.bar-left::after,
+.bar-right::after {
+  border-color: rgba(252, 252, 255, 0.09);
+  background-color: rgba(252, 252, 255, 0.05);
+  /* The recess. Just INSIDE the rim the console runs ~5.5 levels darker than
+     the pill's own interior, on the top edge and the bottom edge alike
+     (-7.9 at stage y 340 and -9.0 at y 428, against a -2.5..-3 interior).
+     Equal on both edges means it is not directional shading, it is an inner
+     vignette -- the pill reads as a shallow slot cut into the bar, with the
+     bright rim as its lip. Alpha solves to ~0.028 on both edges. */
+  box-shadow: inset 0 0 0 3px rgba(0, 0, 0, 0.028);
 }
 
 /* Center area — left-aligned with clock at 43.78% of screen width; top=47.5% within bottom bar */
@@ -124,11 +196,13 @@
     4px 4px 6px rgba(120, 130, 145, 0.18);
 }
 
-/* Center-preserving positions (centers unchanged from the half-pills pass;
-   box-sizing is border-box, so the old 2px ring border sat INSIDE the old
-   74.3/76.7 boxes). */
-.wii-button  { left: 36.5px; top: 4.5px; }
-.mail-button { left: 16.2px; top: 4.7px; }
+/* Centre-preserving positions. These are relative to the pill, and the pill
+   moved in the 2026-07-30 pass (up 3.5px, and 9.7px narrower), so both values
+   are compensated to leave the buttons exactly where they were: measured
+   centres are (75.2, 383.5) and (76.3 from the right edge, 383.5), which the
+   capture confirms were already correct. Re-derive both if the pill moves. */
+.wii-button  { left: 48.5px; top: 8px; }
+.mail-button { left: 6.5px; top: 8.2px; }
 
 .wii-button-inner,
 .mail-button-inner {

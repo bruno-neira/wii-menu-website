@@ -12,6 +12,11 @@ behind them.
 
 ---
 
+> ⚠️ **Read the 2026-07-30 ADDENDUM (§A) first.** It supersedes §0's "the interior is darker"
+> framing, §4a's tint speculation, §11's geometry table, and the rim alpha quoted below. The short
+> version: the darkening is the layout's **drop-shadow copy**, not a tint — there is no tint — and
+> the shipped geometry is a **92 × 120.4 stage px** capsule. §2, §5, §6 and §8 are unaffected.
+
 ## 0. Verdict, up front
 
 **The half-pills are real.** They are visible in `reference_screen.png` as a closed, capsule-shaped
@@ -494,3 +499,179 @@ Suggested shape of the fix (not applied — this is a research doc):
 - Add the (+0.7 % x, +4.6 % of bar height y) offset on the outline if you want the exact look;
   offset in the same absolute direction on both sides, not mirrored.
 - `pointer-events: none` on the plate.
+
+---
+
+## ADDENDUM — 2026-07-30: the composite is solved, and §4a's "honest tension" was a false alarm
+
+Written during the `bruno/buttons-half-pill` branch, prompted by the observation that the pills
+read wrong in our build and are missing a visible **railing**. Measured on the 1096×600 capture
+(re-downloaded; §1's og:image link still resolves) plus `reference_screen.png`.
+
+**This addendum supersedes §4's "the interior is darker" framing, §4a's tint speculation, and
+§11's geometry table.** Nothing in §2, §5, §6 or §8 changes.
+
+### A.1 The one thing that was actually wrong
+
+§4a flagged a contradiction it could not resolve: the texture is a *light* (RGB ≈ 222) alpha mask
+tinted pure white by the layout (§8.4), yet the shape reads *darker* than the bar on screen. It
+guessed at an unrecoverable "darker vertex-colour tint".
+
+**There is no tint.** The darkening is the **drop-shadow copy** that §8.3 found in the layout
+bytes — `N_Btn{L,R}_a1`, the same capsule textures at `TevColor1 = (0,0,0,64)`, offset down-right.
+Because the plate is near-white and the shadow is black, **one alpha mask produces wildly
+asymmetric results over a ~210 bar**: the plate rim can only brighten by `α·(222−210) = 12α`,
+while the shadow darkens by `α·0.251·210 = 53α`. Same mask, ~4.4× the leverage. That is the whole
+effect, and it is why every previous pass read the pill as "a dark outline".
+
+### A.2 The prediction that settles it
+
+The shadow is offset in **absolute screen direction on both pills** (§7), so:
+
+- **Left pill** — cap faces screen-centre, shadow pushes further screen-right ⇒ the shadow juts
+  *past* the cap and paints a dark crescent outside the bright rim.
+- **Right pill** — cap faces screen-centre, shadow pushes *away* from the cap ⇒ the shadow hides
+  entirely behind the plate and **there is no dark crescent at all**.
+
+Measured at the caps' widest row, delta vs a contour-matched bare-bar column:
+
+| | bright plate rim | dark shadow crescent outside it |
+|---|---|---|
+| Left cap | **+3.3** at 120.1 stage px from the edge | **−17.2** at 126.0 |
+| Right cap | **+4.6** at 119.9–123.7 | **none** (\|Δ\| < 1.0 everywhere outside) |
+
+The rims agree to 0.2 stage px, so the plates are mirror-symmetric; only the shadow is not. This
+also retires §3b's "the outline is a shadow" as a *hypothesis* — it is now a measured consequence
+with a confirmed one-sided signature.
+
+### A.3 Single-alpha fit
+
+Solving both observations with one rim alpha, RGB 222, material alpha 0.251:
+
+| rim α | plate rim (meas +3.3) | shadow rim (meas −17.2) |
+|---|---|---|
+| 0.25 | +3.0 | −13.2 |
+| **0.32** | **+3.8** | **−16.9** |
+| 0.537 (WM4K) | +6.4 | −28.3 |
+
+**α ≈ 0.32, not WM4K's 0.537.** WM4K is a *hand redraw* (established during the button work — it
+is structure-tier evidence, not pixel-tier), so where it disagrees with a capture, the capture
+wins. The interior alpha 0.071 is corroborated: predicted composite `0.071·(222−210) − 0.071·0.251·210
+= −2.8`, measured **−2.5**.
+
+### A.4 Geometry, re-measured at 2.6× — and one very clean number
+
+The plate's edges are the *bright* rim (top y=444, bottom y=565 in the 1096×600 frame):
+
+| Quantity | Stage px | Note |
+|---|---|---|
+| **Pill height** | **92.0** | see below |
+| Cap radius | **46.0** | exactly h/2 — true capsule, circular in stage px |
+| Outer edge from screen edge | **120.4** | left 120.1, right 119.9 — symmetric |
+| Top edge | **337.4** from stage top | 6.8 below the cyan contour; it does **not** poke above the bar |
+| Vertical centre | **383.4** | concentric with the button (measured 383.6) |
+| Shadow offset | **(+6, +6)** | measured +5.7 x, +6.1 y |
+| Rim thickness | **≈2** | 2 native texels; wider-looking horizontally is capture blur |
+
+**The height is 92.0 stage px and the texture's opaque extent is 92 of its 128 texels (§4a).**
+So this element is drawn at **exactly 1 texel = 1 stage px vertically**, and the 128-tall pane is
+92 of capsule plus transparent padding. That resolves the §8.2 vs §3 conflict — the layout's
+"128 tall" is the *pane*, not the shape — and it is a strong independent check on the whole
+stage-coordinate model.
+
+**Correction to §11:** its "height 70% of bar height / width 14.6%" table was derived from the
+*shadow-inclusive* outline and is ~4 % tall and ~8 % wide. Use the table above.
+
+### A.5 The left pill is NOT wider on this screen
+
+§8.2 found the left pill's centre slice is 164 units vs the right's 92. On screen they measure
+**symmetric to 0.2 stage px** (A.2). The extra width serves `B_Cal` / `B_Add`, which exist only on
+the **Message Board** screen; `my_IplTop_e.brlyt` is shared chrome. Build them symmetric for the
+Wii Menu. (Consistent with §8.4's warning that the raw X anchors are not usable as authored.)
+
+### A.6 Implementation — as shipped
+
+Build Nintendo's construction directly and let alpha compositing do the rest — do **not**
+hand-compute the resulting greys, because the correct sign flips against the bar's own gradient
+(brightening over the dark upper bar, near-neutral over the light lower bar) and a baked hex
+cannot.
+
+```
+plate  : capsule 120.4 x 92, border 2px rgba(252,252,255,0.09)
+                             background-color  rgba(252,252,255,0.05)
+                             box-shadow  inset 0 0 0 3px rgba(0,0,0,0.028)   /* the recess */
+shadow : the SAME capsule, offset (+6,+6),
+                             border 2px        rgba(0,0,0,0.082)
+                             background-color  rgba(0,0,0,0.018)
+```
+
+Both pills get the shadow offset **down-and-right**; do not mirror it.
+
+Three things that only surfaced against a live render, all of which produced visible defects:
+
+1. **`background-clip: padding-box` is required.** Otherwise the background also paints under the
+   border and the rim composites *both* alphas — the shadow rim measured **−21.9** against the
+   console's −17.0. The rim and the interior are two separate alphas in the texture and have to
+   stay separate here. Set the background with **`background-color`, not the `background`
+   shorthand**, which silently resets `background-clip` back to `border-box`.
+2. **The edge-side border must be clipped, not drawn.** §6 established there is no vertical stroke
+   closing the shape at the screen edge; drawing one turns the pill into an obvious **rectangle**.
+   Give the element a **12px overhang past the screen edge** and let the stage's `overflow: hidden`
+   clip it. 12 rather than 4 because the shadow copy is translated +6px, which pushes *its* edge
+   border back onto the screen as a stray vertical line.
+3. **Recompute the button offsets whenever the pill moves.** The buttons are positioned relative to
+   the pill, and this pass moved it up 3.5px, in 9.7px, and out 12px. Their measured centres —
+   (75.2, 383.5) and (76.3 from the right edge, 383.5) — were already correct and must be preserved.
+
+**Rim values are fitted, not derived.** A single alpha mask at WM4K's 0.537/222 reproduces the
+shadow but makes the bright lip ~2× too strong where the bar is dark (brightening scales with
+`rim − bar`, and the bar runs ~185 at the pill's top vs ~210 at its cap). Solving both measured
+points gives a lighter, thinner rim: `0.09 × (252 − 185) = +6.0` vs console +5.7, and
+`0.09 × (252 − 210) = +3.8` vs console +3.3…+4.6. More evidence that WM4K is structure-tier only.
+
+**Verification.** Ratchet `bottomBar` **0.7032 → 0.7134** (+0.010, twice the 0.005 noise floor);
+all 10 tests pass. Note that the **gate did not fail on this change and cannot**: its per-pixel
+`threshold` defaults to 0.2 (≈51 levels) while this work moves 3–17 levels, so tonal changes of
+this size are invisible to it by construction. That is the ratchet's job, and the split is
+working as intended — but do not read a green gate as evidence that a tonal change landed.
+
+### A.7 The recess, and one open question
+
+**Implemented:** just inside the rim the console runs ~5.5 levels darker than the pill's own
+interior, and by the *same* amount on the top edge (−7.9 at stage y 340) and the bottom edge
+(−9.0 at y 428). Equal on both edges rules out directional shading — it is an inner vignette,
+α ≈ 0.028, and it is what makes the pill read as a shallow **slot cut into the bar** with the
+bright rim as its lip. This is the "railing".
+
+**Open:** the vignette does not fully account for the top band; the measured profile shows bright
+(y 337–338) → dark (339–341) → neutral (342) → dark again (345–348), and the second dark band is
+the shadow's own top rim, correctly placed (−13.7 measured vs −14.9 predicted). The neutral gap
+between the two is not explained. Candidates: the rim is a 1-texel-bright/1-texel-dark bevel, or
+residual contour misalignment in the only 8 columns that are simultaneously past the shadow and
+still under the flat part of the contour. Not resolvable at 1096×600 — the capture's own scanlines
+swing adjacent rows by ±3. Sweeping the vignette alpha across 0.020–0.045 moves the whole-profile
+RMS by under 0.06 levels, so this residual is not worth further fitting without a better capture.
+
+### A.8 The local theme rips are useless for THIS texture — do not vote on them
+
+`reference/ashpool/` holds 7 independent theme rips of `cmnBtn`, and an md5 vote on
+`my_TopBtn_base_a.tpl` / `_base_b.tpl` splits 4–3. **Neither group is Nintendo's.**
+
+- The **4-vote** group (amongus, castlevania, sonicmovie, starfoxzero) is byte-identical because
+  all four **blanked the pill**: the TPL texel data is *all zeros*, a fully transparent 64×128.
+  Byte-identity across independent lineages normally implies stock bytes — here it implies a
+  shared *deletion*, most likely one theme-maker tool's default.
+- The **3-vote** group (the dark-Wii trio) is the known shared-lineage cluster, and it also
+  **re-encoded the format** — stock is `RGB5A3` (GX format 5), the trio is `IA4` (format 2) with
+  RGB flat 255 and alphas 187–255. A reskin, not a rip.
+
+So the md5-vote heuristic that worked elsewhere in this corpus inverts here, in both directions at
+once. For this element the evidence order is: **capture measurement → layout bytes → WM4K
+(structure only)**. Two further traps met on the way:
+
+- The bundled TPL extractor's **RGB5A3 path silently decodes to all-zero**, so a "blank" result
+  proves nothing until confirmed against the raw file. A hand decoder must honour GX **4×4 tile
+  order**; reading linearly gives a shuffled image with a correct histogram, which passes a naive
+  sanity check.
+- `my_TopBtn_base_b` is **16×128**, not the 92/164 of §8.2 — it is a narrow strip stretched to the
+  centre-slice width. Confirmed from the TPL header (4160 bytes = 16·128·2 + 64).
