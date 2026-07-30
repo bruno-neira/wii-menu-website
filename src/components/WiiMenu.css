@@ -38,16 +38,32 @@
   overflow: hidden;
 }
 
-/* Background gradient - the classic Wii silver-gray */
+/* Page background — the striped "TV sheet".
+   Authored by Nintendo, not a capture artifact: my_TVSheet_b.tpl puts a
+   period-4 alpha stripe (one bright scanline in four) plus a per-page
+   horizontal bloom on every page plate. 1 texture row = 1 scanline = 1 stage
+   px, so the stripe period is exactly 4px here.
+
+   Tones are calibrated against reference_screen.png (de-interleaved from the
+   half-res capture): dim rows 239 centre -> 226 edge, bright line 249 -> 242.
+   The bloom layer darkens both stripe tones equally — an approximation worth
+   ~5/255 max error on the bright line at screen edge.
+
+   Phase (bright line first at stage top) is a convention, not a measurement.
+   When page navigation lands, the bloom moves onto the page element so it
+   slides with the page. See context/components/page-background.md. */
 .wii-bg {
   position: absolute;
   inset: 0;
-  background: radial-gradient(
-    ellipse 80% 60% at 50% 30%,
-    #ececec 0%,
-    #e8e8e8 60%,
-    #e5e5e5 100%
-  );
+  background-image:
+    linear-gradient(90deg,
+      rgba(0, 0, 0, 0.049) 0%,  rgba(0, 0, 0, 0.045) 10%, rgba(0, 0, 0, 0.038) 19%,
+      rgba(0, 0, 0, 0.022) 29%, rgba(0, 0, 0, 0.011) 38%, rgba(0, 0, 0, 0.000) 48%,
+      rgba(0, 0, 0, 0.000) 52%, rgba(0, 0, 0, 0.011) 62%, rgba(0, 0, 0, 0.022) 71%,
+      rgba(0, 0, 0, 0.038) 81%, rgba(0, 0, 0, 0.045) 90%, rgba(0, 0, 0, 0.049) 100%),
+    repeating-linear-gradient(180deg,
+      #f9f9f9 0px, #f9f9f9 1px,
+      #efefef 1px, #efefef 4px);
   z-index: 0;
 }
 
