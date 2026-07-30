@@ -180,6 +180,12 @@
   height: 76.3px;
   border-radius: 50%;
   border: none;
+  /* Re-arm hit-testing. The bar wrapper and the pill are both
+     `pointer-events: none` (they are decorative — the decomp registers hit
+     boxes on B_Set / B_Bbs / B_Ch, never on the pill), and that inherits, so
+     without this the buttons are not clickable AT ALL. They had been dead since
+     the pill work; the cursor's hit-test assertion is what surfaced it. */
+  pointer-events: auto;
   /* The plate behind the face IS the ring: system accent cyan. */
   background: #35beeb;
   /* ~2-unit annulus, capture-measured ring thickness. */

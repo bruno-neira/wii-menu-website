@@ -2519,3 +2519,81 @@ await expect(page).toHaveScreenshot({
 10. **Whether the 5-frame `decide()` delay (§5.4a) feels right on a mouse is untested.** The finding
    itself is solid decomp evidence; the recommendation to ship it behind a default-off flag is a
    judgement call about web ergonomics, not something the decomp can settle.
+
+---
+
+## ADDENDUM — 2026-07-30: built, and two things the doc got wrong
+
+Written while implementing `src/components/WiiCursor.jsx` on `bruno/cursor`. Part A/B research
+above held up almost entirely; §12.3's "use Approach B" was correct and §8's revised sizing was the
+number that made it work. Two corrections and one trap follow.
+
+### C.1 ⚠️ The cursor rip in `reference/work2/amongus` is a THEME REPLACEMENT — do not draw from it
+
+`reference/work2/amongus/ash/cursor.decompressed.ash_extracted/arc/timg/defcursor_final64_a.tpl`
+decodes cleanly (64×64, RGB5A3) and looks plausible — a white hand with a heavy black outline. **It
+is not the stock cursor.** Its index finger is drawn **diagonally, at ~45°**, and its bbox is 42×52,
+where both §3.1 and every other source have a **vertical finger column** in a 43×62 hand.
+
+The usable local source is **`reference/synthwiive/textures/cursor/cursor.png`** — a themer's
+template, i.e. a *recolour* that preserves the stock silhouette (teal instead of white, so useless
+for colour, authoritative for shape). Its per-row extents reproduce §3.1's table closely.
+
+This is the same shape of trap as the half-pill textures: a local rip that decodes fine and is still
+worthless, because the theme edited exactly the thing being measured. **For cursor art, the source
+order is: sprite rip → synthwiive template → any `.mym`/ashpool rip (last, and only after checking
+it has not been redrawn).**
+
+### C.2 The artwork's aspect ratio: sources disagree ~5 %, and height wins
+
+| Source | Hand bbox in the 64-cell | Aspect |
+|---|---|---|
+| §3.1 (Spriters Resource console rip) | 43 × 62 | 0.694 |
+| synthwiive template, measured this pass (alpha > 110) | 41 × 56 | 0.732 |
+
+Both cannot be right. **Height is the anchor**, because §8 derives the on-screen size from the
+height via the decompiled 54×54 quad, and that chain is the one with layout-binary evidence in it.
+So the implementation targets **hand height = 50.6 stage px** and lets width follow from the drawn
+silhouette (≈37 stage px, vs §8's 35.4). Flagged rather than silently averaged.
+
+### C.3 What was built
+
+Clean-room: the paths are **drawn from the measured per-row extents**, not traced. Fit against the
+template silhouette, resampled into the same 64-cell space: **IoU 0.949**, 9 stray pixels. The
+residual is a ~1 px antialiasing band at the alpha threshold.
+
+| Decision | Value | Why |
+|---|---|---|
+| Approach | `cursor: none` + DOM follower | §12.3. `cursor: url()` cannot do 50.6 stage px — every engine reverts to the arrow past **32 px** |
+| Sizing unit | stage px × `--stage-scale` | The console ran at fixed 480p, so a fixed layout-unit size WAS a fixed screen fraction. Asserted by a test that halves the viewport |
+| Placement | **sibling** of `.wii-menu`, not a child | The stage clips its overflow; a cursor that vanished at the letterbox would leave the user with no pointer at all |
+| Hotspot | fingertip, 29.2 % across / 3.1 % down | Corner-anchoring is the classic version of this bug — subtly wrong rather than obviously broken |
+| Shadow | separate offset silhouette, (+3,+3), 35.3 % black | Not `filter: drop-shadow()`, which re-rasterises every frame on a moving element |
+| Visibility | hidden until first `pointermove` | Keeps it out of every screenshot baseline with no mask, for free |
+| Hover response | **none** | §5.3 — the console never changes the cursor on hover. `cursor: none` on all descendants also suppresses the `pointer` hand, which is the authentic behaviour |
+
+**DELIBERATE DIVERGENCE — no tilt.** By request. Nintendo's own no-roll-data value is **exactly
+15°** (§12.4 Option 1), confirmed twice independently, and it is the documented answer for precisely
+the situation a web port is permanently in. We render upright, which §12.4 calls Option 3 and
+advises against. One-line revert: add `rotate(15deg)` to `.wii-cursor__art`.
+
+### C.4 The cursor's hit-test assertion found a live bug in the bottom bar
+
+`.bottom-bar-wrapper` and `.bar-left` / `.bar-right` are both `pointer-events: none` — correct, they
+are decorative, and the decomp registers hit boxes on `B_Set` / `B_Bbs` / `B_Ch` and never on the
+pill. But `pointer-events` **inherits**, and `.wii-button` / `.mail-button` never re-armed it, so
+**both bar buttons had been completely unclickable.** `.sd-icon` set `pointer-events: all` and was
+fine, which is why nothing looked wrong.
+
+Nothing in the visual harness could have caught this — it is not a rendering difference. Fixed with
+`pointer-events: auto` on the buttons, and `tests/visual/cursor.spec.js` now asserts that a point
+over the button resolves to the button while the hand is drawn on top of it.
+
+### C.5 Not implemented, and deliberately so
+
+- **Smoothing / lag** (§6.2). The console's smoothing is KPAD's, and it exists to settle IR jitter
+  that a mouse does not have. Adding it would cost responsiveness to reproduce a compensation for a
+  problem we do not have. Direct 1:1 tracking.
+- **The 5-frame (83 ms) click delay** (§5.4a). §5.4a already recommends shipping it off by default
+  for the same reason. The *cancel-on-drag* half is worth revisiting when drag exists.
+- **Grab pose, B-scroll arrow, players 2–4** (§5.5, §7, §9). Nothing to drag, scroll or share yet.
