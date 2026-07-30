@@ -1,0 +1,152 @@
+/**
+ * Empty-slot TV snow.
+ *
+ * Structure extracted from Nintendo's my_IplTop_b.brlan
+ * (context/brlan-extraction.md §4): a 15 Hz texture-pattern flicker over four
+ * noise frames, plus two superimposed linear vertical scrolls at a 5:1 speed
+ * ratio. The scrolls are why the console's loop is 2000 frames (33.4s) even
+ * though the visible grain repeats every second — their interference is the
+ * long-period component.
+ */
+
+.channel-static {
+  position: absolute;
+  inset: 0;
+  z-index: 0; /* below .channel-inner::before gloss */
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* Layer 1 — the flicker. Four noise frames on Nintendo's exact 15-step order. */
+.channel-static__flicker {
+  position: absolute;
+  inset: 0;
+  background-size: 200% 400%; /* atlas: 2 cols x 4 frames */
+  background-repeat: repeat;
+  background-position-x: var(--snow-x, 0%);
+  image-rendering: pixelated;
+  animation: snow-flicker 1001ms steps(1, end) infinite;
+}
+
+/* Layers 2 and 3 — the my_TV_d gratings: a 16x16 horizontal line pattern
+   (1 row on, 3 off) mapped at two scales via the pane's tex_coords.
+
+   These do NOT scroll the noise, which an earlier pass assumed. They are
+   separate rolling scanlines, and they are what makes an empty slot read as a
+   little TV screen rather than a flat noisy rectangle. Their combined sigma
+   roughly MATCHES the per-pixel grain (~0.95:1 structural); an earlier revision
+   drove that ratio to 0.25:1 on the theory that all banding was a capture
+   artifact. It is not — it is my_TV_d and my_TVSpe_a.
+
+   Bilinear filtering at 1.2 and 12 units per texel turns the square wave into a
+   triangle: peak at the bright texel centre, linear fall to zero at the next,
+   flat for two, rise again. Hence four stops.
+
+   Both roll DOWNWARD, measured off console footage — the opposite of what the
+   NW4R sign convention implies. Each extends one full period below the box so
+   translating down never exposes a gap; .channel-static clips the overhang, and
+   using transform keeps the roll on the compositor. */
+.channel-static__scan-fine,
+.channel-static__scan-coarse {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.channel-static__scan-fine {
+  height: calc(100% + 4.8px);
+  background: repeating-linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.19) 0px,
+    rgba(255, 255, 255, 0) 1.2px,
+    rgba(255, 255, 255, 0) 3.6px,
+    rgba(255, 255, 255, 0.19) 4.8px
+  );
+  animation: scan-roll-fine 1668ms linear infinite;
+  animation-delay: var(--scan-fine-delay, 0ms);
+}
+
+.channel-static__scan-coarse {
+  height: calc(100% + 48px);
+  background: repeating-linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.17) 0px,
+    rgba(255, 255, 255, 0) 12px,
+    rgba(255, 255, 255, 0) 36px,
+    rgba(255, 255, 255, 0.17) 48px
+  );
+  animation: scan-roll-coarse 8342ms linear infinite;
+  animation-delay: var(--scan-coarse-delay, 0ms);
+}
+
+@keyframes scan-roll-fine {
+  from { transform: translateY(-4.8px); }
+  to   { transform: translateY(0); }
+}
+
+@keyframes scan-roll-coarse {
+  from { transform: translateY(-48px); }
+  to   { transform: translateY(0); }
+}
+
+/* Nintendo's verbatim RLTP order: 0,1,2,3,0,2,1,0,3,1,2,0,1,2,3.
+   Deliberately not a round-robin — consecutive frames are never equal, frame 3
+   is rarer than the others, and the transitions 1->3 and 3->2 never occur. A
+   plain 0,1,2,3 cycle reads as a rhythmic pulse; this reads as noise. */
+@keyframes snow-flicker {
+  0.0000% { background-position-y: 0%; }
+  6.6667% { background-position-y: 33.3333%; }
+  13.3333% { background-position-y: 66.6667%; }
+  20.0000% { background-position-y: 100%; }
+  26.6667% { background-position-y: 0%; }
+  33.3333% { background-position-y: 66.6667%; }
+  40.0000% { background-position-y: 33.3333%; }
+  46.6667% { background-position-y: 0%; }
+  53.3333% { background-position-y: 100%; }
+  60.0000% { background-position-y: 33.3333%; }
+  66.6667% { background-position-y: 66.6667%; }
+  73.3333% { background-position-y: 0%; }
+  80.0000% { background-position-y: 33.3333%; }
+  86.6667% { background-position-y: 66.6667%; }
+  93.3333% { background-position-y: 100%; }
+  100% { background-position-y: 0%; }
+}
+
+
+/* A grid of flickering high-frequency noise is a genuine photosensitivity and
+   vestibular concern (WCAG 2.2.2, 2.3.1). Freeze every layer.
+
+   We do NOT also dim it: this build already renders at the console's measured
+   contrast, so dimming would push it below visibility entirely. */
+@media (prefers-reduced-motion: reduce) {
+  .channel-static__flicker,
+  .channel-static__scan-fine,
+  .channel-static__scan-coarse {
+    animation: none;
+  }
+}
+
+/* The ghosted "Wii" wordmark. Measured at -7/255 below the local base, roughly
+   3% contrast, ~36% of tile width, centred. Deliberately near-invisible: it is
+   a watermark in the noise, not a logo. */
+.wii-wordmark {
+  position: absolute;
+  /* Centroid sits 3.5 units left of and 1.4 units below the plate centre. */
+  left: calc(50% - 3.5px);
+  top: calc(50% + 1.4px);
+  width: 25%; /* 40 of the aperture's 160 units */
+  height: auto;
+  transform: translate(-50%, -50%);
+  color: #000;
+  /* Re-measured from the 4-frame mean of the real texture: ink depth -9.5/255
+     over #D4D4D4, i.e. 1.75x the per-tile grain sigma, so it IS faintly legible
+     in a single tile. The previous 0.014 was three times too faint and 36% wide
+     was 53% too wide. */
+  opacity: 0.045;
+  pointer-events: none;
+  z-index: 1;
+}
+

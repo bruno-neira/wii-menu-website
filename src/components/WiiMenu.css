@@ -9,24 +9,32 @@
   overflow: hidden;
 }
 
-/* TV frame — maintains the MacBook Pro 14" frame ratio (1512:982).
-   Sized to fit within the viewport while keeping that ratio. */
-.tv-frame {
-  position: relative;
-  aspect-ratio: 1512 / 982;
-  width: min(100vw, calc(100vh * 1512 / 982));
-  background: black;
-  flex-shrink: 0;
+/* Full-bleed, letterboxed on black.
+   The real System Menu renders edge to edge and draws no chrome of its own;
+   the console handles overscan in the video mode, not the layout. A decorative
+   bezel was a presentation choice, and it also forced a non-integer scale.
+   See context/aspect-ratio-and-overscan.md. */
+.stage-area {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 
-/* Wii menu content — positioned at the reference screen's relative
-   location within the frame: 6.72% from top, 86.56% tall */
+/* The stage: a fixed 832x456 virtual coordinate space, scaled to fit.
+   Everything inside is expressed in literal stage pixels — the same units
+   Nintendo authored in — so measured values drop in without conversion and
+   there is a single rounding regime for the whole UI. */
 .wii-menu {
-  position: absolute;
-  top: 6.72%;
-  left: 0;
-  width: 100%;
-  height: 86.56%;
+  position: relative;
+  width: 832px;
+  height: 456px;
+  flex: 0 0 auto;
+  /* X is squashed by the anamorphic factor; see src/useStageScale.js. */
+  transform: scale(calc(var(--stage-scale, 1) * 0.97436), var(--stage-scale, 1));
+  transform-origin: center center;
   overflow: hidden;
 }
 
@@ -34,44 +42,62 @@
 .wii-bg {
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(ellipse 80% 60% at 50% 30%, #ececec 0%, #e8e8e8 60%, #e5e5e5 100%);
+  background: radial-gradient(
+    ellipse 80% 60% at 50% 30%,
+    #ececec 0%,
+    #e8e8e8 60%,
+    #e5e5e5 100%
+  );
   z-index: 0;
 }
 
-/* Channels area — Figma-derived: 70/850=8.24% gap above, channels end at 594/850=69.88%
-   leaving a 2.24% gap (19px) before the bottom bar at 72.41% */
+/* Channel grid.
+   Nintendo's slot pitch IS the icon authoring canvas — 170x96 in the 16:9
+   space — and at the pane level there is ZERO gutter: slot pitch equals slot
+   box exactly (context/brlan-extraction.md §10.1). The visible 10px/8px gutter
+   is the clipped transparent ring baked into each tile's own texture, not a
+   gap between layout nodes.
+
+   Expressed here as an explicit 160x88 tile plus a 10/8 gap, which sums to the
+   same 170x96 pitch. The previous values had the right pitch but the wrong
+   split (164.5 tile / 6.35 gutter), making tiles too fat and gutters too tight.
+
+   The grid block spans x [-340,+340] in the 832-wide space, so it starts 76px
+   from the left edge. Deliberately NOT centred: the block overflows to the
+   right so a fifth column peeks past the screen edge, which is the layout-level
+   cause of the partial column visible in every real screenshot. */
 .channels-area {
   position: absolute;
-  top: 8.24%;
+  top: 37.6px;
   left: 0;
   right: 0;
-  bottom: 30.12%;
+  bottom: 137.3px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 0 8.2%;
+  justify-content: flex-start;
+  padding: 0 0 0 76px;
   z-index: 1;
 }
 
-/* 4-column 3-row grid — gaps from Figma: 11px column / 9px row at 1512px reference */
 .channels-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  column-gap: clamp(3px, 0.73vw, 11px);
-  row-gap: clamp(3px, 0.60vw, 9px);
-  width: 100%;
+  grid-template-columns: repeat(4, 160px);
+  column-gap: 10px;
+  row-gap: 8px;
 }
 
-/* Clock — Figma: time container x=662/1512=43.78% from left, y=685, top=(685-66)/850=72.82% from wii-menu top */
+/* Clock sits above the bar's accent line, on the page background rather than
+   on the bar itself (context/components/bottom-bar-container.md). */
 .clock-above-bar {
   position: absolute;
-  top: 72.82%;
-  left: 43.78%;
+  top: 332px;
+  left: 364.2px;
   z-index: 2;
 }
 
-/* Navigation arrows */
+/* Page navigation — officially "blue scroll arrows" (Wii Operations Manual).
+   A disabled arrow is removed entirely rather than greyed, so page 1 shows only
+   the right arrow. */
 .nav-arrow {
   position: absolute;
   top: 50%;
@@ -88,7 +114,7 @@
 }
 
 .nav-arrow svg {
-  width: clamp(16px, 2.98vw, 45px);
+  width: 26.7px;
   height: auto;
 }
 
@@ -102,5 +128,5 @@
 }
 
 .nav-arrow-right {
-  right: 3.7%;
+  right: 30.8px;
 }

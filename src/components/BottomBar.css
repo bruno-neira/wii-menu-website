@@ -3,7 +3,7 @@
   bottom: 0;
   left: 0;
   right: 0;
-  height: 27.59%;
+  height: 125.8px;
   pointer-events: none;
 }
 
@@ -15,35 +15,62 @@
   height: 100%;
 }
 
-/* Left half-pill: flat end at screen left, rounded cap faces right */
-.bar-left {
-  position: absolute;
-  left: 0;
-  top: 8.55%;
-  width: 15.64%;
-  height: 76.07%;
-  background: #d3d4db;
-  border-radius: 0 9999px 9999px 0;
-  pointer-events: all;
-}
+/* The corner "half-pill" platforms the Wii and Message Board buttons sit on.
+   Extracted from my_IplTop_e.brlyt (context/brlan-extraction.md §8).
 
-/* Right half-pill: rounded cap faces left, flat end at screen right */
+   Three findings from the layout that the earlier screenshot analysis missed:
+
+   1. The two pills are DIFFERENT widths. Both are three-slice capsules with
+      64-wide caps, but the centre slice is 92 on the right and 164 on the left
+      (the left cluster also hosts Calendar/Add on the Message Board screen).
+      Earlier research measured them as symmetric to within 1px; the layout says
+      otherwise.
+   2. Height is 128, spanning y in [-220, -92] — so the pill HANGS HIGH and its
+      top edge pokes out above the bar, reaching exactly the clock's anchor
+      height. It is not vertically centred in the bar.
+   3. They carry a hard drop shadow: a complete second copy of the pill offset
+      (+6, +6) at 25.1% black. Not a blur — an offset silhouette.
+
+   The material tint is plain white with no alpha reduction, so all of the
+   pill's translucency comes from the texture's own alpha channel. That
+   independently confirms the rim-and-faint-interior reading measured from the
+   texture rip, and is why this is a translucent fill rather than the solid
+   #d3d4db plate it used to be.
+
+   Decorative only: the decomp registers hit boxes on the named button panes
+   (B_Set, B_Bbs, B_Ch), never on the pill, so pointer-events stays off. */
+.bar-left,
 .bar-right {
   position: absolute;
-  right: 0;
-  top: 8.55%;
-  width: 15.64%;
-  height: 76.07%;
+  /* Negative: the pill's top edge sits above the bar wrapper, reaching the
+     clock's anchor height. This overhang is authentic, not a mistake. */
+  top: 10.7px;
+  height: 95.7px;
   background: #d3d4db;
+  /* Hard offset silhouette, not a blur — the layout draws a complete second
+     copy of the pill at 25.1% black, offset (+6,+6). Scaled to stage units. */
+  filter: drop-shadow(3px 3px 0 rgba(0, 0, 0, 0.10));
+  pointer-events: none;
+}
+
+/* Cap radius is 64 = half the 128 height, i.e. a true capsule. */
+.bar-left {
+  left: 0;
+  width: 130.1px;
+  border-radius: 0 9999px 9999px 0;
+}
+
+.bar-right {
+  right: 0;
+  width: 130.1px;
   border-radius: 9999px 0 0 9999px;
-  pointer-events: all;
 }
 
 /* Center area — left-aligned with clock at 43.78% of screen width; top=47.5% within bottom bar */
 .bar-center {
   position: absolute;
-  left: calc(43.78% + 2.5vw);
-  top: 47.5%;
+  left: 388.9px;
+  top: 59.7px;
   bottom: 0;
   display: flex;
   align-items: flex-start;
@@ -51,16 +78,16 @@
   pointer-events: none;
 }
 
-/* Flex row for day + date with Figma-proportional gap (32/1512 = 2.1vw) */
+/* Day + date row. Gap in stage px. */
 .bar-date-group {
   display: flex;
   align-items: center;
-  gap: 2.1vw;
+  gap: 20.6px;
 }
 
 .bar-date {
   font-family: Arial, Helvetica, sans-serif;
-  font-size: clamp(10px, 2.2vw, 33px);
+  font-size: 19px;
   color: #787879;
   letter-spacing: 0.5px;
 }
@@ -68,9 +95,9 @@
 /* Wii Button — positioned within bar-left */
 .wii-button {
   position: absolute;
-  left: 28.82%;
-  top: 5.77%;
-  height: 77.75%;
+  left: 37.5px;
+  top: 5.5px;
+  height: 74.3px;
   aspect-ratio: 1;
   border-radius: 50%;
   border: 2px solid #4cbadf;
@@ -114,7 +141,7 @@
 
 .wii-button-text {
   font-family: 'RocknRoll One', 'Helvetica Neue', Arial, sans-serif;
-  font-size: clamp(11px, 1.5vw, 16px);
+  font-size: 9.2px;
   font-weight: 700;
   color: #4a5060;
   letter-spacing: 0.5px;
@@ -124,9 +151,9 @@
 /* Mail Button — positioned within bar-right */
 .mail-button {
   position: absolute;
-  left: 12.30%;
-  top: 4.65%;
-  height: 80.28%;
+  left: 16.0px;
+  top: 4.5px;
+  height: 76.7px;
   aspect-ratio: 1;
   border-radius: 50%;
   border: 2px solid #4cbadf;
@@ -172,4 +199,23 @@
   width: 55%;
   height: 55%;
   z-index: 1;
+}
+
+/* SD Card Menu icon. Sits outside the left pill, to the right of the Wii
+   button, and carries no button chrome of its own. */
+.sd-icon {
+  position: absolute;
+  left: 148px;
+  top: 34px;
+  width: 26px;
+  height: 32px;
+  pointer-events: all;
+  cursor: pointer;
+  opacity: 0.85;
+}
+
+.sd-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
