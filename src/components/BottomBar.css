@@ -92,112 +92,133 @@
   letter-spacing: 0.5px;
 }
 
-/* Wii Button — positioned within bar-left */
-.wii-button {
-  position: absolute;
-  left: 37.5px;
-  top: 5.5px;
-  height: 74.3px;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  border: 2px solid #4cbadf;
-  cursor: pointer;
-  padding: 0;
-  background: none;
-}
+/* Round bar buttons — Wii (left pill) and Message Board (right pill).
+   Sizes come from the resolved chain in wii-button.md ADDENDUM: the ball
+   artwork fills 70.9 of the 80-unit pane, the ring is the 84-unit plate's
+   annulus behind it -> face ~71 stage px, ring outer ~74.5. The ring is NOT a
+   border around a bigger disc; it is the outermost element.
 
-.wii-button-inner {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  background: linear-gradient(145deg, #dedede 0%, #d8d9e0 50%, #d5d5d5 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  overflow: hidden;
-  transition: transform 0.08s ease;
-}
-
-.wii-button:hover .wii-button-inner {
-  transform: scale(1.06);
-}
-
-.wii-button:active .wii-button-inner {
-  transform: scale(0.95);
-}
-
-.wii-button-inner::after {
-  content: '';
-  position: absolute;
-  top: 5%;
-  left: 5%;
-  width: 60%;
-  height: 60%;
-  background: radial-gradient(ellipse at 30% 30%, rgba(255,255,255,0.64) 0%, rgba(255,255,255,0) 70%);
-  border-radius: 60% 45% 30% 55% / 65% 40% 35% 55%;
-  pointer-events: none;
-}
-
-.wii-button-text {
-  font-family: 'RocknRoll One', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 9.2px;
-  font-weight: 700;
-  color: #4a5060;
-  letter-spacing: 0.5px;
-  z-index: 1;
-}
-
-/* Mail Button — positioned within bar-right */
+   Both buttons are identical constructions (same texture on the console);
+   they were previously two different sizes, which is not a thing the layout
+   can produce. */
+.wii-button,
 .mail-button {
   position: absolute;
-  left: 16.0px;
-  top: 4.5px;
-  height: 76.7px;
-  aspect-ratio: 1;
+  width: 76.3px;
+  height: 76.3px;
   border-radius: 50%;
-  border: 2px solid #4cbadf;
+  border: none;
+  /* The plate behind the face IS the ring: system accent cyan. */
+  background: #35beeb;
+  /* ~2-unit annulus, capture-measured ring thickness. */
+  padding: 1.7px;
   cursor: pointer;
-  padding: 0;
-  background: none;
+  /* The socket: the button sits in a recessed dish. The same top-left key
+     light that blooms the face throws the dish's shadow to the BOTTOM-RIGHT
+     at ~45deg (equal x/y offset), with a faint bright rim on the lit side.
+     Clearly visible in the capture, not a whisper — the shadow band reaches
+     ~1.3-1.5R. */
+  box-shadow:
+    -1.5px -1.5px 2px rgba(255, 255, 255, 0.6),
+    2.5px 2.5px 3.5px 0.5px rgba(112, 119, 132, 0.42),
+    4px 4px 6px rgba(120, 130, 145, 0.18);
 }
 
+/* Center-preserving positions (centers unchanged from the half-pills pass;
+   box-sizing is border-box, so the old 2px ring border sat INSIDE the old
+   74.3/76.7 boxes). */
+.wii-button  { left: 36.5px; top: 4.5px; }
+.mail-button { left: 16.2px; top: 4.7px; }
+
+.wii-button-inner,
 .mail-button-inner {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: linear-gradient(145deg, #dedede 0%, #d8d9e0 50%, #d5d5d5 100%);
+  /* Face lighting, capture-calibrated (both buttons measure body 211-219,
+     darker than the doc's #E5 column sample — see wii-button.md ADDENDUM):
+     a matte sphere key-lit from the TOP-LEFT.
+       1. the key light: a soft but visible bloom at 10-11 o'clock,
+          0.35-0.5R from center (WM4K texture structure). The translucent
+          envelope (alpha 180 over the face) brightens where this bloom
+          passes beneath it — same mechanism as the console.
+       2. right-side dulling veil — the side facing away from the light.
+       3. vertical body: bright top, shading compressed into the bottom ~22%. */
+  background:
+    radial-gradient(ellipse 52% 46% at 33% 27%,
+                    rgba(255, 255, 255, 0.98) 0%,
+                    rgba(255, 255, 255, 0.55) 30%,
+                    rgba(255, 255, 255, 0) 62%),
+    linear-gradient(90deg,
+                    rgba(186, 190, 196, 0) 55%,
+                    rgba(186, 190, 196, 0.3) 100%),
+    linear-gradient(to bottom,
+                    #d6d8da 0%,
+                    #d8dadc 22%,
+                    #d4d6d8 58%,
+                    #cbcdcf 78%,
+                    #c0c2c5 93%,
+                    #bcbec1 100%);
+  /* Fresnel edge: the sphere's rim rolls away from the light all around. */
+  box-shadow: inset 0 0 3px 0.5px rgba(110, 115, 125, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
   overflow: hidden;
-  transition: transform 0.08s ease;
+  /* Bar-button hover is asymmetric: 100ms in, 133ms out (extracted). The
+     resting rule carries the OUT duration; :hover overrides with the IN. */
+  transition: transform 133ms cubic-bezier(0.5, 0, 0.5, 1);
 }
 
+/* The hover "light up", as Nintendo builds it: the *_Ac pane is the same
+   face TEV-mapped to white, faded in over the button. A white veil, not a
+   glow filter. */
+.wii-button-inner::after,
+.mail-button-inner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: #ffffff;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 2;
+  transition: opacity 133ms cubic-bezier(0.5, 0, 0.5, 1);
+}
+
+.wii-button:hover .wii-button-inner,
 .mail-button:hover .mail-button-inner {
   transform: scale(1.06);
+  transition-duration: 100ms;
 }
 
+.wii-button:hover .wii-button-inner::after,
+.mail-button:hover .mail-button-inner::after {
+  opacity: 0.22;
+  transition-duration: 100ms;
+}
+
+.wii-button:active .wii-button-inner,
 .mail-button:active .mail-button-inner {
   transform: scale(0.95);
 }
 
-.mail-button-inner::after {
-  content: '';
-  position: absolute;
-  top: 5%;
-  left: 5%;
-  width: 60%;
-  height: 60%;
-  background: radial-gradient(ellipse at 30% 30%, rgba(255,255,255,0.64) 0%, rgba(255,255,255,0) 70%);
-  border-radius: 60% 45% 30% 55% / 65% 40% 35% 55%;
-  pointer-events: none;
+/* Wordmark: 50.6% of the face, flat #A2A2A2, optical center ~2% above
+   geometric (wii-button.md §1.3). */
+.wii-button .wii-wordmark {
+  width: 35.9px;
+  height: auto;
+  color: #a2a2a2;
+  margin-top: -1.4px;
+  z-index: 1;
 }
 
+/* Envelope: pane is 48x32 on the 80 pane -> 64% of the face after the same
+   artwork fill factor. Tone comes from the svg's own rgba fill. */
 .mail-icon {
-  width: 55%;
-  height: 55%;
+  width: 64%;
+  height: auto;
   z-index: 1;
 }
 
