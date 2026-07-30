@@ -1,18 +1,18 @@
 {
   "grid": {
-    "ssim": 0.1231,
-    "diffRatio": 0.3405
+    "ssim": 0.1293,
+    "diffRatio": 0.3427
   },
   "bottomBar": {
-    "ssim": 0.662,
-    "diffRatio": 0.0772
+    "ssim": 0.6868,
+    "diffRatio": 0.0814
   },
   "clockDate": {
-    "ssim": 0.5808,
-    "diffRatio": 0.1053
+    "ssim": 0.6111,
+    "diffRatio": 0.1158
   },
   "wholeStage": {
-    "ssim": 0.1762,
-    "diffRatio": 0.2431
+    "ssim": 0.195,
+    "diffRatio": 0.2456
   }
 }

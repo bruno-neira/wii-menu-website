@@ -180,6 +180,15 @@ no SD card affordance on the main Menu screen. That means:
 >   scanline pattern**, present across the entire frame including the background
 >   (amplitude ≈ ±7/255). The real grain baked into the art is isotropic noise at ~1%
 >   amplitude (σ≈2.5/255 vs σ≈0.3 for flat background).
+>
+>   > **⚠️ ADDENDUM (2026-07-29) — "the capture's own" is wrong; the striping is AUTHORED.**
+>   > `my_TVSheet_b.tpl` (bound on every page-background plate) carries a period-4 alpha
+>   > stripe — one bright scanline in four — plus a per-page horizontal bloom. The stripe is
+>   > frame-anchored and shows through the translucent empty-slot quads, which is why it
+>   > appears "across the entire frame." Interlace would be period-2 native and cannot
+>   > produce the period-4 pattern measured. "Diagonal grain is a misread" stands; the
+>   > attribution to the capture does not. See `components/page-background.md` (texture
+>   > bytes, capture calibration, phase measurements).
 > - **Empty slots are ANIMATED.** They are a real layout object — `my_IplTop_b.brlyt` +
 >   `my_IplTop_b.brlan` — seeded to a **random start frame in [0, 2000)** per slot, so the
 >   loop is ≥2000 frames (≈33 s) and **every empty slot is out of phase with every other
