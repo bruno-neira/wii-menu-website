@@ -4,8 +4,8 @@
     "diffRatio": 0.3422
   },
   "bottomBar": {
-    "ssim": 0.7025,
-    "diffRatio": 0.0804
+    "ssim": 0.7039,
+    "diffRatio": 0.0798
   },
   "clockDate": {
     "ssim": 0.6104,

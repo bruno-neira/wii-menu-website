@@ -135,30 +135,20 @@
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  /* Face lighting, capture-calibrated (both buttons measure body 211-219,
-     darker than the doc's #E5 column sample — see wii-button.md ADDENDUM):
-     a matte sphere key-lit from the TOP-LEFT.
-       1. the key light: a soft but visible bloom at 10-11 o'clock,
-          0.35-0.5R from center (WM4K texture structure). The translucent
-          envelope (alpha 180 over the face) brightens where this bloom
-          passes beneath it — same mechanism as the console.
-       2. right-side dulling veil — the side facing away from the light.
-       3. vertical body: bright top, shading compressed into the bottom ~22%. */
+  /* Face body, capture-calibrated (both buttons measure body 211-219):
+     right-side dulling veil over a vertical fall with the shading compressed
+     into the bottom ~22%. The gloss highlight is a separate ::before —
+     measured from the WM4K 8x face redraw, it is a FLAT, HARD-EDGED lens
+     (229 inside vs 215 body, ~3px edge), not a soft bloom. This corrects
+     §1.2's "do not render a hard specular ellipse" — that reading came from
+     capture blur. See wii-button.md ADDENDUM. */
   background:
-    radial-gradient(ellipse 52% 46% at 33% 27%,
-                    rgba(255, 255, 255, 0.98) 0%,
-                    rgba(255, 255, 255, 0.55) 30%,
-                    rgba(255, 255, 255, 0) 62%),
-    linear-gradient(90deg,
-                    rgba(186, 190, 196, 0) 55%,
-                    rgba(186, 190, 196, 0.3) 100%),
     linear-gradient(to bottom,
-                    #d6d8da 0%,
-                    #d8dadc 22%,
-                    #d4d6d8 58%,
-                    #cbcdcf 78%,
-                    #c0c2c5 93%,
-                    #bcbec1 100%);
+                    #d2d4d6 0%,
+                    #d3d5d7 58%,
+                    #cbcdcf 80%,
+                    #c2c4c7 94%,
+                    #c5c7c9 100%);
   /* Fresnel edge: the sphere's rim rolls away from the light all around. */
   box-shadow: inset 0 0 3px 0.5px rgba(110, 115, 125, 0.4);
   display: flex;
@@ -169,6 +159,33 @@
   /* Bar-button hover is asymmetric: 100ms in, 133ms out (extracted). The
      resting rule carries the OUT duration; :hover overrides with the IN. */
   transition: transform 133ms cubic-bezier(0.5, 0, 0.5, 1);
+}
+
+/* The glass reflection. Measured on the WM4K 8x redraw of the stock face:
+   a flat sheet (uniform, no internal gradient) covering the upper-left,
+   reaching 0.86-0.92R toward the top-left rim (a thin dark rim band stays
+   visible) and sweeping to just past center (0.14-0.25R) at the lower-right.
+   Edge transition ~3 stage px — you can see exactly where it ends, which is
+   what makes the button read as glass rather than matte. Built as a rotated
+   ellipse so the lens's long axis follows the light diagonal. */
+.wii-button-inner::before,
+.mail-button-inner::before {
+  content: '';
+  position: absolute;
+  /* Fitted to the measured boundary crossings: semi-axes 0.80R x 0.55R,
+     long axis NE-SW (rotate -45deg), center offset (-12%, -10%) of the face.
+     Reaches 0.86R up-left (the dark rim band stays visible outside it) and
+     0.24R past center at the lower-right. */
+  width: 80%;
+  height: 55%;
+  left: -2%;
+  top: 12.5%;
+  border-radius: 50%;
+  transform: rotate(-45deg);
+  background: rgba(255, 255, 255, 0.34);
+  filter: blur(1.2px);
+  pointer-events: none;
+  z-index: 0;
 }
 
 /* The hover "light up", as Nintendo builds it: the *_Ac pane is the same
@@ -207,6 +224,17 @@
 /* Wordmark: 50.6% of the face, flat #A2A2A2, optical center ~2% above
    geometric (wii-button.md §1.3). */
 .wii-button .wii-wordmark {
+  /* The .wii-wordmark base rule in ChannelStatic.css is the TILE watermark:
+     absolute, offset, black at 4.5% opacity. Every one of those must be
+     overridden here — on the button the wordmark is a fully-opaque flat grey
+     glyph. position:relative (not static) so z-index lifts it above the
+     positioned gloss ::before; on the console the wordmark draws over the
+     lit face. */
+  position: relative;
+  left: 0;
+  top: 0;
+  transform: none;
+  opacity: 1;
   width: 35.9px;
   height: auto;
   color: #a2a2a2;
@@ -217,6 +245,7 @@
 /* Envelope: pane is 48x32 on the 80 pane -> 64% of the face after the same
    artwork fill factor. Tone comes from the svg's own rgba fill. */
 .mail-icon {
+  position: relative;
   width: 64%;
   height: auto;
   z-index: 1;

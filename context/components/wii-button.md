@@ -715,3 +715,25 @@ Capture cross-check on the mail button (centre column x=382): ring 178.5→218 (
 upper face 217–223, lower face falling 213→190 at the rim, envelope 161–166 with a 222
 fold line, socket ≈ −12..−18 under the button. Consistent with §1.2's structure and §2's
 whisper-socket.
+
+### ADDENDUM 2 (2026-07-29) — the gloss is a HARD-EDGED lens, correcting §1.2
+
+§1.2 said "do not render a hard specular ellipse — it is a large, low-contrast, blurred bloom."
+The blur was the capture's, not the highlight's. Measured on the WM4K 8x face redraw
+(structure-tier source, 640x640):
+
+- The highlight is **FLAT** — 229 across its whole area, no internal gradient — against a body
+  of 215 (falling to 205–207 at the bottom rim). Δ14: modest in amplitude but **sharply
+  bounded**: the edge transition is ~4% of the diameter (~3 stage px). You can see exactly
+  where it ends; that boundary is what makes the button read as glass.
+- Geometry (boundary crossings from ball centre, R = ball radius): reaches 0.86–0.92R toward
+  the top-left (a thin dark rim band stays visible outside it), 0.74–0.79R to the sides, and
+  only 0.14–0.25R past centre at the lower-right. Well modelled as an ellipse with semi-axes
+  ~0.80R x 0.55R, long axis NE–SW (rotate −45°), centre offset (−0.24R, −0.20R).
+- Implementation: a rotated ::before ellipse, flat `rgba(255,255,255,0.34)`, `blur(1.2px)`,
+  under the wordmark/envelope (both glyphs draw over the lit face; the envelope still
+  brightens under the lens via its own 0.706 alpha).
+- Trap for the unwary: the `.wii-wordmark` base rule in `ChannelStatic.css` is the tile
+  watermark (absolute, offset, black, 4.5% opacity) — every property must be overridden when
+  the same component is used on the button, and the svg must be positioned or the gloss
+  ::before paints over it.
