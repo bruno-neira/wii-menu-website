@@ -95,6 +95,23 @@ test('ratchet: score render against reference_screen.png', async ({ page }) => {
 
   await preparePage(page)
 
+  /**
+   * Freeze the CSS animation timeline at t=0. page.clock freezes Date and
+   * timers but NOT the document timeline, so without this the screenshot
+   * catches whichever flicker/scroll frame happens to be showing when the
+   * test gets here — measured on identical code: grid flips between 0.1291
+   * and 0.1333 run-to-run, and wholeStage moves 0.0052, which is above TOL.
+   * The gate never had this problem because toHaveScreenshot disables
+   * animations itself. Seeded per-tile phases are authored as delays, so
+   * pinning currentTime preserves them.
+   */
+  await page.evaluate(() => {
+    for (const a of document.getAnimations()) {
+      a.currentTime = 0
+      a.pause()
+    }
+  })
+
   const refPng = PNG.sync.read(readFileSync(REFERENCE))
   const shot = await page.locator('.wii-menu').screenshot()
 

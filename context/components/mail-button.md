@@ -768,3 +768,20 @@ Ranked by how much they would affect a faithful recreation.
 - `nintendo.fandom.com/wiki/Wii_Message_Board` — HTTP 402.
 - [The Spriters Resource — Wii Menu](https://www.spriters-resource.com/wii/wiimenu/) — only two
   sheets ("Empty Channel Spaces", "Pointer"); no bottom-bar assets.
+
+---
+
+## ADDENDUM (2026-07-29) — envelope construction from the cmnBtn layout decode
+
+See `wii-button.md` ADDENDUM (2026-07-29) for the full `my_IplTop_e.brlyt` decode. Mail-specific
+facts, evidence tier **layout bytes**:
+
+- Face is `my_TopBtn_a.tpl` — the blank ball, identical construction to the Wii button.
+- The envelope is `BbsMark0`: a 48×32 pane at **pane alpha 180**, texture tinted **grey
+  (140,140,140)** by TevColors. Composite over the ~210 face predicts 161; the capture measures
+  the envelope body at **161–166** — the construction is verified byte-to-photo.
+  Implementable as `fill: rgba(140,140,140,0.706)` over the face rather than a flat opaque grey.
+- Fold lines are holes in the glyph (the face shows through, capture ≈ 222), not painted strokes.
+- New-mail pulse primitive: `BtnR_a0_BbsSig1` (`my_TopBtn_h.tpl`), scale 1.1, alpha 0 at rest.
+- Ring = the 84×84 `_00` plate behind the 80×80 face (not an arc texture); visible ring outer
+  ≈ 74–75 stage px, face ≈ 71 stage px after the 70.9/80 artwork fill factor.

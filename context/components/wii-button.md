@@ -685,3 +685,55 @@ Ranked by how much they'd change an implementation.
 - fontmeme — Wii Font (Continuum lookalike claim): <https://fontmeme.com/wii-font/>
 - Internet Archive — Wii Menu 1.0 (NTSC-U) WAD, for pre-4.0 verification: <https://archive.org/details/wiimenu1.0U>
 - This repo's `reference_screen.png` — all pixel measurements in §1–2
+
+---
+
+## ADDENDUM (2026-07-29) — layout decode from the cmnBtn rips
+
+`my_IplTop_e.brlyt` is now extracted locally (`reference/work2/.../cmnbtn...` + 8 ashpool theme
+copies + `reference/consensus/my_IplTop_e.brlyt.deep.json`). Evidence tier: **layout bytes** —
+these facts supersede the [Inferred] rows in §1.1 where they differ.
+
+| Finding | Detail |
+|---|---|
+| **Face textures confirmed** | `BtnL_a0_Set` → `my_TopBtn_c.tpl` (wordmark baked in); `BtnR_a0_Bbs` → `my_TopBtn_a.tpl` (blank ball). §1.1's "shared blank ball" [Inferred] → **[Extracted]**. |
+| **The cyan ring is NOT an arc texture** — corrects §1.1 | The `_00` panes (`BtnL_a0_Set_00` / `BtnR_a0_Bbs_00`, **84×84**) render the *same ball texture* behind the 80×80 face. The ring is the plate's 2-unit annulus peeking out. The `tex1_32x32` quarter-arc guess is dead. |
+| **Ring colour source is ambiguous at the brlyt level** | One theme copy carries TevColors (52,190,237) = the system cyan on `_00`; the consensus brlyt has black there, and `my_IplTop_e.brlan` animates 9 material colours (RLMC) — the tint is plausibly set by an animation init frame. On-screen colour per capture stays **#35BEEB**. |
+| **The hover "light up" is a whitening twin** | `*_Ac` panes: same face texture, TEV ramp `(255,255,255,0) → (255,255,255,255)` — a white-mapped copy of the face that fades in over it. Not a glow filter, not a border change. |
+| **Envelope construction, byte-to-photo checked** | `BbsMark0`: 48×32 pane, **pane alpha 180**, `my_TopBtn_a0.tpl` tinted **grey (140,140,140)** via TevColors. Predicted composite over the ~210 face: 140×(180/255) + 210×(75/255) ≈ **161**. Capture measures the envelope body at **161–166**. Exact agreement. |
+| **New-mail pulse** | `BtnR_a0_BbsSig1`: `my_TopBtn_h.tpl`, scale 1.1, alpha 0 at rest — the pulse ring primitive. |
+| **Pill slices** | `my_TopBtn_base_a` (64×128 ends) / `_base_b` (centre strip), 3-slice; the `a1` hover pill variant runs TevColor1 alpha 64. |
+| **Size chain resolved** | Ball artwork spans 70.9 of the 80-unit pane (§1.3); plate 84 × (70.9/80) ≈ 74.4 ring outer. Capture: face ≈ 35 px, ring outer ≈ 38 px (420-wide) → **face ≈ 71, ring outer ≈ 74–75 stage px**. Layout, texture and capture agree; anchor implementations to these, not to the raw 80/84 pane sizes. |
+
+**⚠️ Provenance warning:** every `my_TopBtn_a/c` copy in our rips is theme-reskinned (the
+"majority" hash trio is the dark-Wii lineage — shared ancestry, recoloured; the work2 copy is
+Among Us fan art). **No stock face bytes exist locally.** The face *shading* spec in §1.2
+therefore remains triangulated (WM4K structure + capture) and was NOT upgraded by this pass.
+`reference/wsmen` is an extraction tool (Rust), not an asset source.
+
+Capture cross-check on the mail button (centre column x=382): ring 178.5→218 (≈39.5 px ⌀),
+upper face 217–223, lower face falling 213→190 at the rim, envelope 161–166 with a 222
+fold line, socket ≈ −12..−18 under the button. Consistent with §1.2's structure and §2's
+whisper-socket.
+
+### ADDENDUM 2 (2026-07-29) — the gloss is a HARD-EDGED lens, correcting §1.2
+
+§1.2 said "do not render a hard specular ellipse — it is a large, low-contrast, blurred bloom."
+The blur was the capture's, not the highlight's. Measured on the WM4K 8x face redraw
+(structure-tier source, 640x640):
+
+- The highlight is **FLAT** — 229 across its whole area, no internal gradient — against a body
+  of 215 (falling to 205–207 at the bottom rim). Δ14: modest in amplitude but **sharply
+  bounded**: the edge transition is ~4% of the diameter (~3 stage px). You can see exactly
+  where it ends; that boundary is what makes the button read as glass.
+- Geometry (boundary crossings from ball centre, R = ball radius): reaches 0.86–0.92R toward
+  the top-left (a thin dark rim band stays visible outside it), 0.74–0.79R to the sides, and
+  only 0.14–0.25R past centre at the lower-right. Well modelled as an ellipse with semi-axes
+  ~0.80R x 0.55R, long axis NE–SW (rotate −45°), centre offset (−0.24R, −0.20R).
+- Implementation: a rotated ::before ellipse, flat `rgba(255,255,255,0.34)`, `blur(1.2px)`,
+  under the wordmark/envelope (both glyphs draw over the lit face; the envelope still
+  brightens under the lens via its own 0.706 alpha).
+- Trap for the unwary: the `.wii-wordmark` base rule in `ChannelStatic.css` is the tile
+  watermark (absolute, offset, black, 4.5% opacity) — every property must be overridden when
+  the same component is used on the button, and the svg must be positioned or the gloss
+  ::before paints over it.

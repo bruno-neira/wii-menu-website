@@ -23,10 +23,12 @@ function DateDisplay() {
 
 function WiiButton() {
   return (
-    <button className="wii-button" aria-label="Wii Menu">
-      <div className="wii-button-inner">
-        <span className="wii-button-text">Wii</span>
-      </div>
+    // DELIBERATE DIVERGENCE (2026-07-29): the console bakes a "Wii" wordmark
+    // into this face; omitted here as a trademark, by request. The blank ball
+    // is otherwise the authentic construction (it is exactly what the Message
+    // Board button uses).
+    <button className="wii-button" aria-label="Menu">
+      <div className="wii-button-inner" />
     </button>
   )
 }
@@ -73,9 +75,19 @@ function MailButton() {
   return (
     <button className="mail-button" aria-label="Wii Message Board">
       <div className="mail-button-inner">
+        {/* Nintendo's construction, byte-decoded: the glyph is tinted grey-140
+            and drawn at pane alpha 180/255 over the ball, so the face shows
+            through slightly (capture composite 161-166). The fold line is a
+            hole in the glyph, not a painted stroke — cut it with a mask so the
+            face gradient shows through (context/components/mail-button.md
+            ADDENDUM 2026-07-29). */}
         <svg className="mail-icon" viewBox="0 0 76 51" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect x="1" y="1" width="74" height="49" rx="3" fill="#a4a4a4" stroke="none"/>
-          <polyline points="1,13 38,30 75,13" fill="none" stroke="#d8d9e0" strokeWidth="4"/>
+          <mask id="mail-fold">
+            <rect x="0" y="0" width="76" height="51" fill="white" />
+            <polyline points="1,13 38,30 75,13" fill="none" stroke="black" strokeWidth="4" />
+          </mask>
+          <rect x="1" y="1" width="74" height="49" rx="3"
+                fill="rgba(140,140,140,0.706)" mask="url(#mail-fold)" />
         </svg>
       </div>
     </button>
