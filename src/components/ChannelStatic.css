@@ -129,24 +129,8 @@
   }
 }
 
-/* The ghosted "Wii" wordmark. Measured at -7/255 below the local base, roughly
-   3% contrast, ~36% of tile width, centred. Deliberately near-invisible: it is
-   a watermark in the noise, not a logo. */
-.wii-wordmark {
-  position: absolute;
-  /* Centroid sits 3.5 units left of and 1.4 units below the plate centre. */
-  left: calc(50% - 3.5px);
-  top: calc(50% + 1.4px);
-  width: 25%; /* 40 of the aperture's 160 units */
-  height: auto;
-  transform: translate(-50%, -50%);
-  color: #000;
-  /* Re-measured from the 4-frame mean of the real texture: ink depth -9.5/255
-     over #D4D4D4, i.e. 1.75x the per-tile grain sigma, so it IS faintly legible
-     in a single tile. The previous 0.014 was three times too faint and 36% wide
-     was 53% too wide. */
-  opacity: 0.045;
-  pointer-events: none;
-  z-index: 1;
-}
+/* The console stamps a ghosted "Wii" watermark into every empty slot
+   (4.5% opacity, measurements in context/components/empty-slot-and-sd-icon.md
+   §A.5). DELIBERATE DIVERGENCE (2026-07-29): omitted as a trademark, by
+   request. The WiiWordmark component and its rule were removed with it. */
 

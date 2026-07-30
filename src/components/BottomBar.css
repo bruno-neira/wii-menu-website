@@ -223,24 +223,9 @@
 
 /* Wordmark: 50.6% of the face, flat #A2A2A2, optical center ~2% above
    geometric (wii-button.md §1.3). */
-.wii-button .wii-wordmark {
-  /* The .wii-wordmark base rule in ChannelStatic.css is the TILE watermark:
-     absolute, offset, black at 4.5% opacity. Every one of those must be
-     overridden here — on the button the wordmark is a fully-opaque flat grey
-     glyph. position:relative (not static) so z-index lifts it above the
-     positioned gloss ::before; on the console the wordmark draws over the
-     lit face. */
-  position: relative;
-  left: 0;
-  top: 0;
-  transform: none;
-  opacity: 1;
-  width: 35.9px;
-  height: auto;
-  color: #a2a2a2;
-  margin-top: -1.4px;
-  z-index: 1;
-}
+/* The console bakes a "Wii" wordmark into this face (50.6% width, #A2A2A2,
+   wii-button.md §1.3). DELIBERATE DIVERGENCE (2026-07-29): omitted as a
+   trademark, by request — the face is the blank ball. */
 
 /* Envelope: pane is 48x32 on the 80 pane -> 64% of the face after the same
    artwork fill factor. Tone comes from the svg's own rgba fill. */

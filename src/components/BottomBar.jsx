@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import WiiWordmark from './WiiWordmark'
 import './BottomBar.css'
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -24,13 +23,12 @@ function DateDisplay() {
 
 function WiiButton() {
   return (
-    <button className="wii-button" aria-label="Wii Menu">
-      <div className="wii-button-inner">
-        {/* Wordmark at 50.6% of the face, flat #A2A2A2, optically raised ~2%
-            (context/components/wii-button.md §1.3). Reuses the clean-room
-            logotype the empty slots stamp. */}
-        <WiiWordmark />
-      </div>
+    // DELIBERATE DIVERGENCE (2026-07-29): the console bakes a "Wii" wordmark
+    // into this face; omitted here as a trademark, by request. The blank ball
+    // is otherwise the authentic construction (it is exactly what the Message
+    // Board button uses).
+    <button className="wii-button" aria-label="Menu">
+      <div className="wii-button-inner" />
     </button>
   )
 }

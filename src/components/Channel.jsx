@@ -1,5 +1,4 @@
 import ChannelStatic from './ChannelStatic'
-import WiiWordmark from './WiiWordmark'
 import './Channel.css'
 
 export default function Channel({ children, index = 0 }) {
@@ -7,12 +6,10 @@ export default function Channel({ children, index = 0 }) {
   return (
     <div className="channel">
       <div className={`channel-inner${isEmpty ? ' channel-inner--empty' : ''}`}>
-        {isEmpty && (
-          <>
-            <ChannelStatic index={index} />
-            <WiiWordmark />
-          </>
-        )}
+        {/* DELIBERATE DIVERGENCE (2026-07-29): the console stamps a ghosted
+            "Wii" watermark into every empty slot (4.5% opacity). Omitted as a
+            trademark, by request. */}
+        {isEmpty && <ChannelStatic index={index} />}
         {children}
       </div>
     </div>
