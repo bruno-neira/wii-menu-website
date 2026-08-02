@@ -1,0 +1,78 @@
+/* The Wii hand pointer.
+   Spec and measurements: context/components/cursor.md (§8 size, §3 art). */
+
+/* Only hide the system cursor once the follower is actually mounted and
+   allowed. If the pointer is coarse, or forced-colors is on, the class is never
+   added and the native cursor stays exactly as the user configured it. */
+.wii-cursor-active,
+.wii-cursor-active * {
+  cursor: none;
+}
+
+/* Size.
+
+   The console draws the 64x64 texture cell into a 54x54 quad, putting the hand
+   at 35.4 x 50.6 STAGE px. Expressing the size in stage units and multiplying
+   by --stage-scale is what makes this track the console's real behaviour: the
+   Wii ran at a fixed 480p-class resolution, so a fixed layout-unit size WAS a
+   fixed fraction of the screen. A fixed CSS px size would not be.
+
+   41 hand units map to 35.4 stage px => 0.86341 stage px per viewBox unit.
+   The 48 x 64 viewBox therefore occupies 41.44 x 55.26 stage px, and X is
+   squashed by the same 0.97436 anamorphic factor the stage itself uses, since
+   the console's cursor lives in that same non-square pixel space.
+     48 * 0.86341 * 0.97436 = 40.38
+     64 * 0.86341           = 55.26 */
+.wii-cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: calc(42.26px * var(--stage-scale, 1));
+  height: calc(57.83px * var(--stage-scale, 1));
+
+  /* Hotspot is the FINGERTIP, not the element's corner. In viewBox units the
+     tip's outer edge sits at (22, 2) and the box starts at x=8, so the tip is
+     29.2 % across and 3.1 % down. Shifting by margin rather than folding it
+     into the transform keeps the JS write to a single translate3d. */
+  margin-left: calc(-12.33px * var(--stage-scale, 1));
+  margin-top: calc(-1.81px * var(--stage-scale, 1));
+
+  /* Never intercept a click: the browser must hit-test the REAL pointer, not
+     the drawn hand. The console splits these too — it allows the hand to be
+     drawn up to 100 units off-screen while hit-testing uses a zero-tolerance
+     rect. Same split, for free. */
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0;
+  will-change: transform;
+}
+
+/* Hidden until the pointer first moves, which also keeps it out of screenshot
+   tests without needing a mask — Playwright fires no pointer events unless a
+   test asks for them. No transition on opacity: the console's cursor vanishes
+   and reappears instantly when IR tracking drops, with no fade. */
+.wii-cursor--visible {
+  opacity: 1;
+}
+
+.wii-cursor__art {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* If the user cannot see a custom cursor properly, give theirs back. This is
+   the honest mitigation for the one thing a DOM follower is strictly worse at
+   than `cursor: url()`: it bypasses OS pointer size, colour and contrast
+   settings, and nothing in CSS can detect that it has done so. */
+@media (forced-colors: active) {
+  .wii-cursor {
+    display: none;
+  }
+
+  .wii-cursor-active,
+  .wii-cursor-active * {
+    cursor: auto;
+  }
+}

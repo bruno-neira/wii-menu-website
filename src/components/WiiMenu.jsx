@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import Channel from './Channel'
 import BottomBar from './BottomBar'
 import Clock from './Clock'
+import WiiCursor from './WiiCursor'
 import { useStageScale, STAGE } from '../useStageScale'
 import './WiiMenu.css'
 
@@ -45,6 +46,12 @@ export default function WiiMenu() {
 
             <BottomBar />
         </div>
+
+        {/* Sibling of the stage, not a child: the stage clips its overflow, and
+            a cursor that vanished the moment it crossed a letterbox bar would
+            leave the user with no pointer at all. It still sizes itself in
+            stage units via --stage-scale. */}
+        <WiiCursor />
       </div>
     </div>
   )

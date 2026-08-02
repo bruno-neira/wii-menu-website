@@ -30,6 +30,10 @@ export function useStageScale(stageRef, width, height) {
       // Fit the *displayed* (post-squash) size, not the raw stage size.
       const scale = Math.min(cw / (width * ANAMORPHIC_X), ch / height)
       stage.style.setProperty('--stage-scale', String(scale))
+      // Also on the container, so siblings of the stage can size themselves in
+      // stage units — the cursor is drawn outside the stage (it must not be
+      // clipped by it) but still has to match its scale exactly.
+      container.style.setProperty('--stage-scale', String(scale))
     }
 
     apply()
